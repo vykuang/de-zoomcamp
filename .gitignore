@@ -1,0 +1,21 @@
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# data files
+*.csv
+*.gz
+data/
