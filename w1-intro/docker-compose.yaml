@@ -1,14 +1,16 @@
 services:
-  pg_db:
+  database:
     image: postgres:10
     environment:
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=root
       - POSTGRES_DB=ny_taxi
     volumes:
-      - "/home/kohada/de-zoomcamp/data/ny_taxi_postgres_data:/var/lib/postgresql/taxi_data:rw"
+      - "/home/kohada/de-zoomcamp/data/ny_taxi_postgres_data:/var/lib/postgresql/data:rw"
     ports:
       - "5432:5432"
+    networks:
+      - pg-network
   pgadmin:
     image: dpage/pgadmin4
     environment:
@@ -18,3 +20,10 @@ services:
       - "/home/kohada/de-zoomcamp/data/pgadmin_config:/var/lib/pgadmin:rw"
     ports:
       - "8080:80"
+    networks:
+      - pg-network
+
+networks:
+  pg-network:
+    name: pg-network
+    attachable: true

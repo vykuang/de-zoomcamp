@@ -67,10 +67,75 @@ Otherwise pgadmin won't load, and browser can't connect to the client
 
 ### docker compose
 
-Use the network and names that have already been specified in the earlier `docker run` commands
+- Use the network and names that have already been specified in the earlier `docker run` commands.
+  - to use a pre-existing network from `docker network create ...`, set `name` and `external: true`
+  - otherwise compose will create an app specific network called `[projectname]_default`, which is what we need to specify in our `run_docker_digest.sh`
+- set `attachable: true` so that our dockerized ingestion script and connect to it and use our specified network alias from docker compose
 
 ## Homework
 
 1. `--iidfile string` writes image ID to file
 1. `python-3.9` has 3 packages installed
-1. 
+1. in sql:
+
+    ```sql
+    SELECT
+	COUNT(1)
+    FROM green_taxi_data
+    WHERE
+	lpep_pickup_datetime >= '2019-01-15 00:00:00' AND lpep_dropoff_datetime <= '2019-01-15 23:59:59'
+    ```
+
+    Datetime requires `HH:MM:SS` specification, not just the date
+    ans: 20530
+1. Find max trip distance using GROUP BY and ORDER BY:
+
+    ```sql
+    SELECT
+ 	MAX(trip_distance) AS "trip_distance",
+	CAST(lpep_dropoff_datetime AS DATE) AS "day"
+    FROM green_taxi_data g
+    GROUP BY CAST(lpep_dropoff_datetime AS DATE)
+    ORDER BY MAX(trip_distance) DESC
+    ```
+
+    ans: 1-15
+1. num pax = 2, and 3, on 01-01:
+
+    ```sql
+    SELECT
+        COUNT(1)
+    -- 	CAST(lpep_dropoff_datetime AS DATE) AS "dropoff",
+    -- 	CAST(lpep_pickup_datetime AS DATE) AS "pickup"
+    FROM green_taxi_data g
+    WHERE
+        <!-- CAST(lpep_dropoff_datetime AS DATE) = '2019-01-01' AND -->
+        CAST(lpep_pickup_datetime AS DATE) = '2019-01-01' AND
+        (passenger_count = 3)
+    ```
+
+    2: 12682  3: 254
+1. largest tip where pick up was in zone 'Astoria':
+
+    ```sql
+    SELECT
+        MAX(tip_amount),
+        zdo."Zone"
+    FROM 
+        green_taxi_data g 
+        JOIN zones zpu
+            ON g."PULocationID" = zpu."LocationID"
+        JOIN zones zdo
+            ON g."DOLocationID" = zdo."LocationID"
+    WHERE zpu."Zone" = 'Astoria'
+    GROUP BY zdo."Zone"
+    ORDER BY MAX(tip_amount) DESC
+    ```
+
+    Always use single quote for string literals. Double quotes refer to column names
+
+## Terraform and GCP
+
+1. Get GCP project ID
+1. git clone my repo
+1. run the terraform files on the gcloud terminal
