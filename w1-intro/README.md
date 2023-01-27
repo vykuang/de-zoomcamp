@@ -2,7 +2,7 @@
 
 ## Ingest csv to postgres
 
-Set the whole `data/` directory as a mount for my `postgres` container; how it's got really strict permissions that prevents `black` and `git` commands.
+Set the whole `data/` directory as a mount for my `postgres` container; now it's got really strict permissions that prevents `black` and `git` commands.
 
 - `sudo chmod -R 770 data/` to restore read/write permission
 
@@ -114,7 +114,7 @@ Otherwise pgadmin won't load, and browser can't connect to the client
         (passenger_count = 3)
     ```
 
-    2: 12682  3: 254
+    2: 1268  3: 254
 1. largest tip where pick up was in zone 'Astoria':
 
     ```sql
@@ -136,6 +136,81 @@ Otherwise pgadmin won't load, and browser can't connect to the client
 
 ## Terraform and GCP
 
-1. Get GCP project ID
+### GCP Setup
+
+1. Get GCP project ID - `de-zoom-376014` / `1075001006785` (project number)
+    1. switch to project
+    1. create `service account` in that project in IAM
+        - service account includes permissions for all the components in that service
+        - components may include cloud storage, big query, VM access, e tc.
+        - can pick and choose permissions based on the components it needs
+    1. Download the `.json` key for that service account
+    1. `export GOOGLE_APPLICATION_CREDENTIALS="path/to/key.json"`
+    1. `gcloud auth application-default login`
+        - encountered this prompt:
+
+        > The environment variable [GOOGLE_APPLICATION_CREDENTIALS] is set to:
+        [/g/documents/google-cloud/de-zoom-376014-73df77142a5f.json]
+        Credentials will still be generated to the default location:
+        [/home/kohada/.config/gcloud/application_default_credentials.json]
+        To use these credentials, unset this environment variable before
+        running your application.
+        Do you want to continue (Y/n)?
+
+    - according to docs, `auth application-default` *manages your active app default credentials*
+    - logging in without setting the env var above will lead to a browser login to ask for your *user creds*
+    - [The vid also covers this](https://youtu.be/Hajwnmj0xfQ?t=773)
+    - It's asking whether you want the newly set env var to replace the existing creds. Say yes
+    - Authenticates your user ID via web flow
+1. I think it's more straightforward to do the following:
+    - `gcloud auth activate-service-account ...`
+    - `gcloud init`
+    - set a new config with the new project-id and the newly auth'd service account
+    - no need to webflow auth
+1. service account `de-zoom@de-zoom-376014.iam.gserviceaccount.com` will have the following roles:
+    - storage admin - for buckets
+    - storage object admin - for things inside buckets
+    - bigquery admin - big query stuff
 1. git clone my repo
-1. run the terraform files on the gcloud terminal
+
+### Terraform
+
+Infrastructure as code. Now we can version control the state of our cloud infra.
+
+Only `main.tf` is required; rest are optional:
+
+- variables
+- resources
+- output
+- `.tfstate`
+
+#### `main.tf`
+
+Four top level declarations: terraform, provider, resource, resource. Resource is doubled since we're defining storage bucket and bigquery dataset
+
+1. `terraform`
+    - backend is the storage choice for the infrastructure states
+        - local vs s3 vs gcp storage
+        - local will save a `.tfstate` file; could contain sensitive data in plain text
+    - required_providers is optional, if we already have another top level declaration in `provider`
+        - similar to `import ...` in python
+1. `provider` - set some defaults for this infra
+    - project
+    - region
+1. `resource` - meat of the `main.tf`. Define the stuff we want
+
+The `var.<name>` denotes some variable defined in a separate file, in `variables.tf`, and so the `main.tf` can be configured by only changing the variables file, akin to `.env`.
+
+#### `variables.tf`
+
+Sets the env vars for our infra, e.g. project-id, region, bucket name, etc.
+
+Only has `locals {...}` and `variable "var_name" { ... }` as top levels
+
+#### commands
+
+- `terraform init` - initialize and install
+- `terraform plan` - compares changes to previous state
+    - `-out=path/to/tfplan` - saves the plan to a file, to be used by `apply`
+- `terraform apply` - implements the changes on the cloud
+- `terraform destroy` - teardown the infra

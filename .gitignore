@@ -19,3 +19,12 @@ __pycache__/
 *.csv
 *.gz
 data/
+
+# terraform cache
+.terraform/
+*.tfstate
+tfplan
+.terraform.lock.hcl
+
+# backups
+*.backup
