@@ -194,7 +194,17 @@ Start new trial to use the GCP VM instead
 
 - Project ID - de-zoom-83
 - `admin-110@de-zoom-83.iam.gserviceaccount.com`
-- 
+
+### `sftp`
+
+SSH File Transfer Protocol (sftp) allows transmission of files between cloud VM and local PC, e.g. our `credentials.json` so our VM has the permissions it needs
+
+1. In local env, `cd my/local/dir`
+1. `sftp <remote_ssh_host>`
+1. Now you're on the remote host shell; `mkdir` and `cd` to whichever dir
+1. `put <file_from_mylocaldir>` will send the file from local to remote host
+
+[`sftp` has these commands](https://phoenixnap.com/kb/sftp-commands); most important is `put`
 
 ## Terraform
 
