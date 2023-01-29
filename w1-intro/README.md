@@ -134,9 +134,7 @@ Otherwise pgadmin won't load, and browser can't connect to the client
 
     Always use single quote for string literals. Double quotes refer to column names
 
-## Terraform and GCP
-
-### GCP Setup
+## GCP Setup
 
 1. Get GCP project ID - `de-zoom-376014` / `1075001006785` (project number)
     1. switch to project
@@ -171,9 +169,34 @@ Otherwise pgadmin won't load, and browser can't connect to the client
     - storage admin - for buckets
     - storage object admin - for things inside buckets
     - bigquery admin - big query stuff
-1. git clone my repo
+1. Add SSH key to compute engine > metadata
+    - `ssh-keygen -t rsa -f gcp_de2 -C klang -b 2048`
 
-### Terraform
+### Setup VM
+
+1. docker
+1. terraform
+1. pyenv 
+    - `curl https://pyenv.run | bash`
+    - edit `bashrc` and `profile`
+    - [prepare build environment](https://github.com/pyenv/pyenv/wiki#suggested-build-environment)
+    - install python-3.10.6
+1. poetry
+    - `poetry install` only recognized 3.10.6 after I uninstalled and re-installed
+    - Ran into this thing:
+    - `Current Python version is not allowed by the project`
+    - When I ran `poetry shell` it created a venv but with the system defined 3.8.10, so when it saw the 3.10 in `.toml` it freaked
+1. github CLI and github token
+
+### New Trial
+
+Start new trial to use the GCP VM instead
+
+- Project ID - de-zoom-83
+- `admin-110@de-zoom-83.iam.gserviceaccount.com`
+- 
+
+## Terraform
 
 Infrastructure as code. Now we can version control the state of our cloud infra.
 
@@ -184,7 +207,7 @@ Only `main.tf` is required; rest are optional:
 - output
 - `.tfstate`
 
-#### `main.tf`
+### `main.tf`
 
 Four top level declarations: terraform, provider, resource, resource. Resource is doubled since we're defining storage bucket and bigquery dataset
 
@@ -201,16 +224,20 @@ Four top level declarations: terraform, provider, resource, resource. Resource i
 
 The `var.<name>` denotes some variable defined in a separate file, in `variables.tf`, and so the `main.tf` can be configured by only changing the variables file, akin to `.env`.
 
-#### `variables.tf`
+### `variables.tf`
 
 Sets the env vars for our infra, e.g. project-id, region, bucket name, etc.
 
 Only has `locals {...}` and `variable "var_name" { ... }` as top levels
 
-#### commands
+### commands
 
 - `terraform init` - initialize and install
 - `terraform plan` - compares changes to previous state
     - `-out=path/to/tfplan` - saves the plan to a file, to be used by `apply`
 - `terraform apply` - implements the changes on the cloud
 - `terraform destroy` - teardown the infra
+
+### Terraform on GCP
+
+The service account on our VM needs to have the correct permissions
