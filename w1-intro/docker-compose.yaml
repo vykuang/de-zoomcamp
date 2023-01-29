@@ -6,7 +6,7 @@ services:
       - POSTGRES_PASSWORD=root
       - POSTGRES_DB=ny_taxi
     volumes:
-      - "/home/kohada/de-zoomcamp/data/ny_taxi_postgres_data:/var/lib/postgresql/data:rw"
+      - "~/de-zoomcamp/data/ny_taxi_postgres_data:/var/lib/postgresql/data:rw"
     ports:
       - "5432:5432"
     networks:
@@ -17,7 +17,7 @@ services:
       - PGADMIN_DEFAULT_EMAIL=admin@admin.com
       - PGADMIN_DEFAULT_PASSWORD=root
     volumes:
-      - "/home/kohada/de-zoomcamp/data/pgadmin_config:/var/lib/pgadmin:rw"
+      - "~/de-zoomcamp/data/pgadmin_config:/var/lib/pgadmin:rw"
     ports:
       - "8080:80"
     networks:
