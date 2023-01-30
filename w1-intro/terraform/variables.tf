@@ -4,7 +4,7 @@ locals {
 
 variable "project" {
   description = "GCP project ID"
-  default = "de-zoom-376014"
+  default = "de-zoom-83"
 }
 
 variable "region" {
