@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import os
-import argparse
 from pathlib import Path
 from time import time
 
@@ -15,7 +14,7 @@ from prefect.tasks import task_input_hash
 from datetime import timedelta
 
 @task(log_prints=True, tags=["extract"], cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
-def extract(csv_uri: str, data_dir: str, chunksize: int = 1000000) -> pd.DataFrame:
+def extract(csv_uri: str, data_dir: str, chunksize: int = 100000) -> pd.DataFrame:
     """
     Extracts the CSV and yield a dataframe in chunks
     """
@@ -32,90 +31,56 @@ def extract(csv_uri: str, data_dir: str, chunksize: int = 1000000) -> pd.DataFra
     for df in df_iter:
         yield df
 
-@task(log_prints=True)
+@task(log_prints=True, tags=["transform"])
 def transform(df_taxi: pd.DataFrame) -> pd.DataFrame:
     """
     Transform the taxi data
-    e.g. look for taxi trips with zero passengers and remove them
+    e.g. look for taxi trips with zero passengers and remove them,
+    transform str to datetimes
     """
+    datetimes = [col for col in df_taxi.columns if "datetime" in col]
+    for col in datetimes:
+        df_taxi[col] = pd.to_datetime(df_taxi[col])
 
-@task(log_prints=True, retries=3)
-def load(params):
-    user = params.user
-    password = params.password
-    host = params.host
-    port = params.port
-    db = params.db
-    table_name = params.table_name
-    
+    # remove zero pax rides
+    df_rm_empty = df_taxi[df_taxi["passenger_count"] > 0]
+    print(f"{len(df_taxi) - len(df_rm_empty)} rides with zero pax removed")
 
-    # sqlalchemy
-    engine = create_engine(f"postgresql://{user}:{password}@{host}:{port}/{db}")
+    # remove zero distance
+    df_rm_zero = df_rm_empty[df_rm_empty["trip_distance"] > 0]
+    print(f"{len(df_rm_empty) - len(df_rm_zero)} rides with zero distance removed ")
+    return df_rm_zero
 
-    # specify n=0 to get only column names;
-    # Writing only column names to sql basically creates the table with
-    # the inferred schema for us automatically
-    df_top = pd.read_csv(csv_name, nrows=100)
-    if "green" in str(csv_name):
-        pickup_dt = "lpep_pickup_datetime"
-        dropoff_dt = "lpep_dropoff_datetime"
-    elif "yellow" in str(csv_name):
-        pickup_dt = "tpep_pickup_datetime"
-        dropoff_dt = "tpep_dropoff_datetime"
-    else:
-        pickup_dt = ""
-        dropoff_dt = ""
-
-    df_top[pickup_dt] = pd.to_datetime(df_top[pickup_dt])
-    df_top[dropoff_dt] = pd.to_datetime(df_top[dropoff_dt])
-    df_top.head(n=0).to_sql(name=table_name, con=engine, if_exists="replace")
-
-    
-    while True:
-
-        try:
-            t_start = time()
-            # get the next chunk
-            df = next(df_iter)
-
-            df[pickup_dt] = pd.to_datetime(df[pickup_dt])
-            df[dropoff_dt] = pd.to_datetime(df[dropoff_dt])
-
-            df.to_sql(name=table_name, con=engine, if_exists="append")
-
-            t_end = time()
-
-            print("inserted another chunk, took %.3f second" % (t_end - t_start))
-
-        except StopIteration:
-            print("Finished ingesting data into the postgres database")
-            break
+@task(log_prints=True, tags=["load"], retries=3)
+def load(df_taxi: pd.DataFrame, engine, table_name: str):
+    """
+    Loads the transformed data into postgres using the SQLAlchemy Engine
+    """   
+    t_start = time()
+    num_insert = df_taxi.to_sql(name=table_name, con=engine, if_exists="append", index=False, chunksize=60000)
+    t_end = time()
+    print(f"{num_insert} rows inserted, took {t_end - t_start:.3f} second")
 
 @flow(name="Ingest Taxi Data Flow")
 def main_flow():
-    parser = argparse.ArgumentParser(description="Ingest CSV data to Postgres")
+    csv_uri = "https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_2021-01.csv.gz"
+    data_dir = "../data/taxi_ingest_data"
+    user = "root"
+    password = "root"
+    host = "localhost"
+    port = 5432
+    db = "ny_taxi"
+    table_name = "yellow_taxi_trips"
 
-    parser.add_argument("--user", required=True, help="user name for postgres")
-    parser.add_argument("--password", required=True, help="password for postgres")
-    parser.add_argument("--host", required=True, help="host for postgres")
-    parser.add_argument("--port", required=True, help="port for postgres")
-    parser.add_argument("--db", required=True, help="database name for postgres")
-    parser.add_argument(
-        "--table_name",
-        required=True,
-        help="name of the table where we will write the results to",
-    )
-    parser.add_argument("--url", required=True, help="url of the csv file")
-    parser.add_argument(
-        "--data_dir", required=True, help="output directory of downloaded file"
-    )
+    # sqlalchemy
+    con_str = f"postgresql://{user}:{password}@{host}:{port}/{db}"
+    engine = create_engine(con_str)
 
-    args = parser.parse_args()
-
-    raw_data = extract()
-    data = transform(raw_data)
-
-    ingest_data(args)
+    raw_data = extract(csv_uri=csv_uri, data_dir=data_dir)
+    for raw_chunk in raw_data:
+        chunk = transform(raw_chunk)
+        load(chunk, engine=engine, table_name=table_name)
+    print("Finished ingesting data into the postgres database")
 
 if __name__ == "__main__":
     main_flow()    

@@ -73,6 +73,7 @@ prefect-sqlalchemy = "~0.2.2"
 protobuf = "~4.21.11"
 pyarrow = "~10.0.1"
 pandas-gbq = "^0.18.1"
+prefect-gcp[cloud_storage] = "^0.2.4"
 ```
 
 ## Prefect
@@ -89,3 +90,19 @@ pandas-gbq = "^0.18.1"
     - `transform` will convert datetimes and remove trips with zero passengers
     - `load` will `UPSERT` the data into postgres
     - the ETL will repeat until `extract` runs out
+
+### Create Prefect GCP blocks
+
+after installing `prefect-gcp[cloud_storage]`, some pre-made blocks are ready for registering. Register with `prefect block register -m prefect_gcp`. This makes the block templates available for creation.
+
+Create and edit these blocks in the Orion UI. Access UI by `prefect orion start`. Need to forward port 4200. Can do so in VS Code if already SSH'd
+
+1. Create GCP credentials block `de-zoom-key`
+  - provide path to the service account json
+  - Can also do it via code, but doesn't that much easier/better
+  - use this credential block in our flow:
+  ```py
+  from prefect_gcp import GcpCredentials
+  gcp_credentials_block = GcpCredentials.load("de-zoom-key")
+  ```
+  
