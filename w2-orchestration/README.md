@@ -93,11 +93,34 @@ prefect-gcp[cloud_storage] = "^0.2.4"
 
 ### Create Prefect GCP blocks
 
+Blocks are how prefect store configurations, as a way to quickly interface with external systems. They can store
+
+- cloud credentials
+- cloud storage config, e.g. GCS, S3
+- database connections
+
+Saving these in `blocks` allow other flows to make use of them, if they also have access to your prefect API. Connection info and other credentials no longer need to be inside our scripts
+
+Blocks could be *nested*. GCS block could make use of GCP credential block to obtain the necessary permissions for their API
+
 after installing `prefect-gcp[cloud_storage]`, some pre-made blocks are ready for registering. Register with `prefect block register -m prefect_gcp`. This makes the block templates available for creation.
 
 Create and edit these blocks in the Orion UI. Access UI by `prefect orion start`. Need to forward port 4200. Can do so in VS Code if already SSH'd
 
+1. Create `SQLAlchemyConnector` block named `pg-connector` - this replaces our manual engine creation inside the flow, and instead grabs the saved configuration from the prefect server
+
+    ```py
+    from prefect_sqlalchemy import SqlAlchemyConnector
+
+    with SqlAlchemyConnector.load("pg-connector") as database_block:
+        engine = database_block.get_engine() # use same way as create_engine()
+    ```
+
 1. Create GCP credentials block `de-zoom-key`
+  - ideally create a new service account with only the permissions it needs
+    - bigquery
+    - cloud storage
+  - video copied the entire JSON content into the `service account info` box, as a dict
   - provide path to the service account json
   - Can also do it via code, but doesn't that much easier/better
   - use this credential block in our flow:
@@ -105,4 +128,5 @@ Create and edit these blocks in the Orion UI. Access UI by `prefect orion start`
   from prefect_gcp import GcpCredentials
   gcp_credentials_block = GcpCredentials.load("de-zoom-key")
   ```
-  
+  - since the service account on my VM already includes those permission, I can get by with having no credential in the GCS block
+1. Create GCS block
