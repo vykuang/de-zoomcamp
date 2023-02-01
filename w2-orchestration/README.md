@@ -130,3 +130,84 @@ Create and edit these blocks in the Orion UI. Access UI by `prefect orion start`
   ```
   - since the service account on my VM already includes those permission, I can get by with having no credential in the GCS block
 1. Create GCS block
+  - name it; this is local to prefect
+  - map it to an existing bucket
+  - optional - put default directory within the bucket, for whomever references this bucket block
+    - use `/data`
+
+### Upload from GCS to BigQuery
+
+[Docs for prefect_gcp blocks](https://prefecthq.github.io/prefect-gcp/)
+
+- `gcp_block.download_object_to_path` or `.get_directory` to download whole folder
+- `gcp_cred_block.get_credentials_from_service_account()` to access the credentials
+- `from prefect import get_run_logger` to log without `print`
+- `df.to_gbq()` uploads straight to bigquery `table`. That means we first create the `dataset.table`; dataset in bq is akin to a `database` in postgres, or any other DB
+  - setting `credentials=` will override default creds, e.g. if your VM has its own service acccount creds
+
+### Flow Parametrization and Deployment
+
+Flow can be parametrized at deployment
+
+Deployment can be built two ways: via python script or via CLI into `yaml`. I distinctly remember the latter being much simpler, so let's do that.
+
+Given our flow `etl_web_gcs.py`, use 
+
+```bash
+prefect deployment build ./etl_web_gcs.py:etl_parent_flow \
+    -n "etl-web-gcs" \
+    -q default \
+    --output web-gcs-deployment.yaml
+```
+
+All it does is create a `.yaml`. This yaml specs our deployment with:
+
+- name: parametrized ny-taxi ETL
+- work queue: default - directs it to the "default" work queue
+
+We can edit the `yaml` to include the parameters we want to specify, i.e. `color`, `year`, etc: `{"color": "yellow", "months" :[1, 2, 3], "year": 2021, "block_name": "ny-taxi-gcs"}`. Other specs:
+
+- schedule
+- infra
+
+Then, `prefect deployment apply web-gcs-deployment.yaml` registers the deployment on prefect server, terminal will show that the `default` work queue now has this deployment, and an agent subscribed to that work queue will be able to pull it and execute.
+
+Start a deployment run manually either through UI or `prefect deployment run "etl-parent-flow/parametrized ny-taxi ETL"`, then try locally with `prefect agent start -q 'default'`
+
+### Work Queues and Agents
+
+Deployments are sent to work queues, and agents subscribe to the specified queues to run those jobs
+
+Agent infra needs to fulfill the requirements of the jobs in the queues. Containerize these agents.
+
+### Notifications
+
+From UI, notifications can be triggered absed on flow run states
+
+webhooks exist for
+
+- teams
+- slack
+- twilio
+- opsgenie
+
+`collections` module allows notification to be coded as well
+
+### Scheduling
+
+### Prefect Cloud
+
+Let's set up shop here instead.
+
+## Homework
+
+1. green-jan-2020: 447,770 rows
+1. cron: 0 5 1 * *
+1. load to bq, without any transformations, yellow taxi data for feb-mar 2019. total rows = 
+1. github storage block to store flow code for `etl_web_gcs`, and process taxi data for `green-nov-2020`. total rows = 
+1. host prefect cloud and set up notification. run `etl_web_gcs` code from above for `green-apr-2019`. Send slack when flow is `completed`. 
+  - cloud account still intact
+  - webhook: https://hooks.slack.com/services/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
+  - try `testing-notifications` channel
+  - total rows = 
+1. secret block - how many `*` shown in UI?
