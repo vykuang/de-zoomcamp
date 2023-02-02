@@ -1,0 +1,67 @@
+###
+### A complete description of a Prefect Deployment for flow 'etl-parent-flow'
+###
+name: etl-web-gcs
+description: Wrapper function to fetch multiple months
+version: 118ed3da20029ba4632686048b6a5a82
+# The work queue that will handle this deployment's runs
+work_queue_name: default
+work_pool_name: null
+tags: []
+parameters: {"color": "green", "months" :[1], "year": 2020, "block_name": "ny-taxi-gcs"}
+schedule: null
+is_schedule_active: null
+infra_overrides: {}
+infrastructure:
+  type: process
+  env: {}
+  labels: {}
+  name: null
+  command: null
+  stream_output: true
+  working_dir: null
+  block_type_slug: process
+  _block_type_slug: process
+
+###
+### DO NOT EDIT BELOW THIS LINE
+###
+flow_name: etl-parent-flow
+manifest_path: null
+storage: null
+path: /home/klang/de-zoomcamp/w2-orchestration
+entrypoint: etl_web_gcs.py:etl_parent_flow
+parameter_openapi_schema:
+  title: Parameters
+  type: object
+  properties:
+    color:
+      title: color
+      position: 0
+      type: string
+    year:
+      title: year
+      position: 1
+      type: integer
+    months:
+      title: months
+      position: 2
+      type: array
+      items:
+        type: integer
+    block_name:
+      title: block_name
+      position: 3
+      type: string
+    data_dir:
+      title: data_dir
+      default: ../data/cache
+      position: 4
+      type: string
+  required:
+  - color
+  - year
+  - months
+  - block_name
+  definitions: null
+timestamp: '2023-02-01T14:57:35.739004+00:00'

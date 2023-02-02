@@ -144,6 +144,8 @@ Otherwise pgadmin won't load, and browser can't connect to the client
         - can pick and choose permissions based on the components it needs
     1. Download the `.json` key for that service account
     1. `export GOOGLE_APPLICATION_CREDENTIALS="path/to/key.json"`
+        - so that's not for `gcloud`; `terraform` uses it to authenticate with GCP
+        - if we're already running on a VM with the correct service account permissions, then it's not necessary
     1. `gcloud auth application-default login`
         - encountered this prompt:
 
@@ -248,6 +250,53 @@ Only has `locals {...}` and `variable "var_name" { ... }` as top levels
 - `terraform apply` - implements the changes on the cloud
 - `terraform destroy` - teardown the infra
 
+### State
+
+TF records state of the managed infra and config in a `.tfstate` file to keep track of the metadata. It maps the named resources to an actual remote object, in light of the fact that not every provider supports tags.
+
+Other metadata include *resource dependencies*. If we ask TF to delete a resource, TF must know the order to know how to delete it.
+
+`terraform plan` queries the provider to get real-time status of state and update the `.tfstate` file to show what the real changes will be.
+
+If `backend` set to `local`, creates a local tfstate; otherwise could get set `backend` to any cloud storage, e.g. `gcs` to store in a bucket.
+
+Any changes made are first compared to the existing `.tfstate` 
+
+#### State locking
+
+If remote backend supports locking, terraform will lock the state for all ops that can write state, preventing *other terraform processes* from acquiring the lock, and corrupting the state. Only one process can hold this lock.
+
+When I `terraform init` on a backend with a 6M retention policy, it threw a state lock error back:
+
+```shell
+Error loading state: <nil>
+Additionally, unlocking the state file on Google Cloud Storage failed:
+
+Error message: "googleapi: Error 403: Object 'tf-states-de-zoom/terraform/state/default.tflock' is subject to bucket's retention policy and cannot be deleted, overwritten or archived until 2023-08-03T22:52:52.086111-07:00, retentionPolicyNotMet
+Lock Info:
+ID:        1675057972084200
+Path:      gs://tf-states-de-zoom/terraform/state/default.tflock
+  Operation: init
+  Who:       klang@de-zoom
+  Version:   1.3.7
+  Created:   2023-01-30 05:52:51.991151375 +0000 UTC
+  Info:      
+"
+"
+Lock ID (gen): 1675057972084200
+Lock file URL: gs://tf-states-de-zoom/terraform/state/default.tflock
+
+You may have to force-unlock this state in order to use it again.
+The GCloud backend acquires a lock during initialization to ensure
+the initial state file is created.
+"
+```
+
+- Since I'm sure that no one else will be modifying the state, I can resolve with `terraform force-unlock <lock_ID>`
+- It's also possible there is a hanging terraform process that actually does have the lock; `ps aus | grep terraform` and `sudo kill -9 <PID>` to remove the hanging process and free the lock
+
 ### Terraform on GCP
 
-The service account on our VM needs to have the correct permissions
+- The service account on our VM needs to have the correct permissions
+- Otherwise set `$GOOGLE_APPLICATION_CREDENTIALS=path/to/key.json` env var for terraform to use
+
