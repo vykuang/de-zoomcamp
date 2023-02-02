@@ -22,7 +22,7 @@ from prefect_gcp.cloud_storage import GcsBucket
 
 bucket_block = GcsBucket(
     # gcp_credentials=GcpCredentials.load("de-zoom-gcs-creds"),
-    bucket="dtc_lake_lake_de-zoom-83",  # insert your  GCS bucket name
+    bucket="dtc_data_lake_de-zoom-83",  # insert your  GCS bucket name
     bucket_folder="data",
 )
 

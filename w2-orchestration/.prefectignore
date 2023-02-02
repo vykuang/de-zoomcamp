@@ -42,3 +42,6 @@ dask-worker-space/
 
 # notebooks
 *.ipynb
+
+# project artifacts
+blocks/

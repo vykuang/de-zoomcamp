@@ -91,7 +91,7 @@ def etl_parent_flow(
 ) -> None:
     """Wrapper function to fetch multiple months"""
     for month in months:
-        etl_web_gcs(color, year, month, block_name)
+        etl_web_gcs(color, year, month, block_name, data_dir=data_dir)
 
 
 if __name__ == "__main__":
