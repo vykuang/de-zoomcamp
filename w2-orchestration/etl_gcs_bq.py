@@ -11,8 +11,15 @@ from prefect_gcp.cloud_storage import GcsBucket
 from prefect_gcp import GcpCredentials
 from prefect import get_run_logger
 
+
 @task(retries=3)
-def extract_from_gcs(color: str, year: int, month: int, gcs_block: str = "ny-taxi-gcs", cache_dir: str = "../data/bq_cache"):
+def extract_from_gcs(
+    color: str,
+    year: int,
+    month: int,
+    gcs_block: str = "ny-taxi-gcs",
+    cache_dir: str = "../data/bq_cache",
+):
     """Loads the bucket block and retrieves file paths for the specified
     taxi types and times
     """
@@ -30,6 +37,7 @@ def extract_from_gcs(color: str, year: int, month: int, gcs_block: str = "ny-tax
         logger.info(f"{local_path} already exists; no download")
     return local_path
 
+
 @task()
 def transform(fpath: Path) -> pd.DataFrame:
     """Data cleaning"""
@@ -38,9 +46,12 @@ def transform(fpath: Path) -> pd.DataFrame:
     logger.info(f"{len(df)} rows read from {fpath}")
     # assume missing passenger count means a count of zero
     df_clean = df.copy()
-    logger.info(f"{df['passenger_count'].isna().sum()} missing pax counts; fill with zero")
-    df_clean['passenger_count'] = df['passenger_count'].fillna(0)
+    logger.info(
+        f"{df['passenger_count'].isna().sum()} missing pax counts; fill with zero"
+    )
+    df_clean["passenger_count"] = df["passenger_count"].fillna(0)
     return df_clean
+
 
 @task()
 def upload_bq(df: pd.DataFrame, project_id: str = "de-zoom-83"):
@@ -48,23 +59,32 @@ def upload_bq(df: pd.DataFrame, project_id: str = "de-zoom-83"):
     # gcp_cred_block = GcpCredentials.load("")
 
     df.to_gbq(
-        destination_table="trips_data_all.yellow_taxi_trips", # "<dataset>.<table>" format
+        destination_table="trips_data_all.yellow_taxi_trips",  # "<dataset>.<table>" format
         project_id=project_id,
         # credentials=gcp_cred_block.get_credentials_from_service_account(), # use VM cred
         chunksize=50000,
-        if_exists='append',
+        if_exists="append",
     )
 
+
 @flow()
-def gcs_to_bq(color: str = "yellow", year: int = 2021, months: list[int] = [1], gcs_block: str = "ny-taxi-gcs"):
+def gcs_to_bq(
+    color: str = "yellow",
+    year: int = 2021,
+    months: list[int] = [1],
+    gcs_block: str = "ny-taxi-gcs",
+):
     """Main flow to load data from cloud storage to BigQuery"""
     logger = get_run_logger()
-    fpaths = [extract_from_gcs(color, year, month, gcs_block=gcs_block) for month in months]
+    fpaths = [
+        extract_from_gcs(color, year, month, gcs_block=gcs_block) for month in months
+    ]
     logger.info(f"paths collected:\n{fpaths}")
     for fpath in fpaths:
         df = transform(fpath)
         upload_bq(df)
-    # path = 
+    # path =
+
 
 if __name__ == "__main__":
     # "parametrization"

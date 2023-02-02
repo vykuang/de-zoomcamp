@@ -80,13 +80,20 @@ def etl_web_gcs(
         fpath = write_local(df_clean, fpath)
     upload_gcs(block_name, fpath)
 
+
 @flow()
 def etl_parent_flow(
-    color: str, year: int, months: list[int], block_name: str, data_dir: str = "../data/cache"
+    color: str,
+    year: int,
+    months: list[int],
+    block_name: str,
+    data_dir: str = "../data/cache",
 ) -> None:
     """Wrapper function to fetch multiple months"""
     for month in months:
         etl_web_gcs(color, year, month, block_name)
+
+
 if __name__ == "__main__":
     # "parametrization"
     color = "yellow"

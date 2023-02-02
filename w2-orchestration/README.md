@@ -176,9 +176,16 @@ Start a deployment run manually either through UI or `prefect deployment run "et
 
 ### Work Queues and Agents
 
-Deployments are sent to work queues, and agents subscribe to the specified queues to run those jobs
+Deployments are sent to work queues, and agents subscribe to the specified queues to run those jobs, per `--queue <WORK_QUEUE>` arg
+
+  - `--match QUEUE_PREFIX` will match multiple work queues, and override `--queue`
 
 Agent infra needs to fulfill the requirements of the jobs in the queues. Containerize these agents.
+
+In addition to passing `--queue`, the `PREFECT_API_URL` env var must also be set. By default this will point to the local URL of `http://localhost:4200/api` but if we're using cloud, then it will be different, e.g. `PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"`
+
+This can also be configured on a per-agent basis by passing `--api <API_HERE>`
+
 
 ### Notifications
 
@@ -198,6 +205,50 @@ webhooks exist for
 ### Prefect Cloud
 
 Let's set up shop here instead.
+
+- `prefect profile create 'cloud'` to make a new profile that will use the cloud prefect server
+- `prefect profile use 'cloud'` - switch to the newly created profile
+- Get the API key once we're logged in to cloud
+- `prefect cloud login -k <prefect_api_key>`
+  - This also sets the workspace to the cloud automatically
+  - `prefect cloud workspace set --workspace "vykuang92gmailcom/kopitiam"` has been executed implicitly 
+- `prefect profile inspect 'cloud'` will reveal the two env vars set: `PREFECT_API_KEY` and `PREFECT_API_URL`
+
+All deployments applied will now point this workspace, and all resources like deployments, work queues, and blocks are now accessible
+
+### Github block
+
+[docs here](https://docs.prefect.io/concepts/filesystems/#github)
+
+This allows `prefect deploy` to read a remote flow code from a public repo instead of a local copy. No creds required if repo is public
+
+- `de-zoom-gh`
+- generate access token with repo content permissions for the de-zoomcamp repo
+  - not necessary if we're reading from public repo
+- path to deployment code is relative to repo root
+
+```py
+from prefect.filesystems import GitHub
+
+github_block = GitHub.load("de-zoom-gh")
+```
+`github_block.get_directory()` did not work...
+
+try install `prefect-github` and add github repository block instead
+
+Same thing - `coroutine does not have this method`. The object returned from `.load()` is a `Coroutine` object, from python's `asyncio` library. I think it needs prefect flow context to substantiate how it's supposed to.
+
+Alternatively use it in the `prefect deploy` CLI command ([from this prefect demo](https://towardsdatascience.com/create-robust-data-pipelines-with-prefect-docker-and-github-12b231ca6ed2))
+
+```bash
+prefect deployment build src/main.py:create_pytrends_report \
+  -n google-trends-gh-docker \
+  -q test \
+  -sb github/pytrends \
+  -ib docker-container/google-trends \
+  -o prefect-docker-deployment \
+  --apply
+```
 
 ## Homework
 
