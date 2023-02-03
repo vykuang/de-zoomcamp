@@ -1,0 +1,80 @@
+###
+### A complete description of a Prefect Deployment for flow 'etl-parent-flow'
+###
+name: taxi-upload-gcs
+description: Wrapper function to fetch multiple months
+version: 3c010146e6f0d4e86b4c945b52231a68
+# The work queue that will handle this deployment's runs
+work_queue_name: de-zoom-taxi
+work_pool_name: default-agent-pool
+tags: []
+parameters:
+  color: green
+  months:
+  - 5
+  year: 2019
+  block_name: ny-taxi-gcs
+schedule: null
+is_schedule_active: true
+infra_overrides: {}
+infrastructure:
+  type: process
+  env: {}
+  labels: {}
+  name: null
+  command: null
+  stream_output: true
+  working_dir: null
+  block_type_slug: process
+  _block_type_slug: process
+
+###
+### DO NOT EDIT BELOW THIS LINE
+###
+flow_name: etl-parent-flow
+manifest_path: null
+storage:
+  bucket_path: de-zoom-prefect
+  service_account_info: null
+  project: de-zoom-83
+  _block_document_id: 97aad8f9-4ac6-4e2f-86c1-b04407e810d0
+  _block_document_name: flow-storage-gcs
+  _is_anonymous: false
+  block_type_slug: gcs
+  _block_type_slug: gcs
+path: ny-taxi
+entrypoint: etl_web_gcs.py:etl_parent_flow
+parameter_openapi_schema:
+  title: Parameters
+  type: object
+  properties:
+    color:
+      title: color
+      position: 0
+      type: string
+    year:
+      title: year
+      position: 1
+      type: integer
+    months:
+      title: months
+      position: 2
+      type: array
+      items:
+        type: integer
+    block_name:
+      title: block_name
+      position: 3
+      type: string
+    data_dir:
+      title: data_dir
+      default: ../data/cache
+      position: 4
+      type: string
+  required:
+  - color
+  - year
+  - months
+  - block_name
+  definitions: null
+timestamp: '2023-02-03T01:27:57.951658+00:00'

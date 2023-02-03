@@ -31,7 +31,7 @@ def extract_from_gcs(
     # perhaps download_object is more appropriate
     local_path = Path(cache_dir) / gcs_path
     if not local_path.exists():
-        local_path.parent.mkdir(parents=True)
+        local_path.parent.mkdir(parents=True, exist_ok=True)
         gcs_block.download_object_to_path(from_path=gcs_path, to_path=local_path)
     else:
         logger.info(f"{local_path} already exists; no download")
@@ -67,10 +67,10 @@ def upload_bq(df: pd.DataFrame, project_id: str = "de-zoom-83"):
     )
 
 
-@flow()
+@flow(name="taxi-gcs-bq")
 def gcs_to_bq(
-    color: str = "yellow",
     year: int = 2021,
+    color: str = "yellow",
     months: list[int] = [1],
     gcs_block: str = "ny-taxi-gcs",
 ):
@@ -91,5 +91,5 @@ if __name__ == "__main__":
     color = "yellow"
     year = 2021
     month = [1]
-    block_name = "ny-taxi-gcs"
-    gcs_to_bq(color, year, month, block_name)
+    gcs_block = "ny-taxi-gcs"
+    gcs_to_bq(color, year, month, gcs_block)

@@ -236,6 +236,11 @@ Four top level declarations: terraform, provider, resource, resource. Resource i
 
 The `var.<name>` denotes some variable defined in a separate file, in `variables.tf`, and so the `main.tf` can be configured by only changing the variables file, akin to `.env`.
 
+Here we're creating two resources:
+
+1. GCS bucket named `dtc_data_lake_<project_id>`
+1. BQ dataset (their name for database) named `trips_data_all`
+
 ### `variables.tf`
 
 Sets the env vars for our infra, e.g. project-id, region, bucket name, etc.

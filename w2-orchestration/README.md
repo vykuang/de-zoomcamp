@@ -1,5 +1,27 @@
 # Workflow Orchestration
 
+- [Workflow Orchestration](#workflow-orchestration)
+  * [Data lake](#data-lake)
+    + [Lake vs Warehouse](#lake-vs-warehouse)
+    + [Gotchas](#gotchas)
+    + [ETL vs ELT](#etl-vs-elt)
+    + [Cloud Providers](#cloud-providers)
+  * [Intro to Workflow Orchestration](#intro-to-workflow-orchestration)
+  * [Env Setup](#env-setup)
+  * [Prefect](#prefect)
+    + [Turning our `ingest_data.py` into a flow](#turning-our--ingest-datapy--into-a-flow)
+    + [Create Prefect GCP blocks](#create-prefect-gcp-blocks)
+    + [Upload from GCS to BigQuery](#upload-from-gcs-to-bigquery)
+    + [Flow Parametrization and Deployment](#flow-parametrization-and-deployment)
+    + [Work Queues and Agents](#work-queues-and-agents)
+    + [Notifications](#notifications)
+    + [Scheduling](#scheduling)
+    + [Prefect Cloud](#prefect-cloud)
+    + [Github block](#github-block)
+  * [Homework](#homework)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+
 ## Data lake
 
 - Ingests both structured *and unstructured data*
@@ -204,6 +226,93 @@ webhooks exist for
 
 ### Scheduling
 
+- schedule with `--cron "cron_syntax"` in `prefect deployment build`
+- or, add schedule in UI, after `prefect deployment apply`
+
+### Dockerized execution
+
+Requirements to dockerize our execution agents:
+
+- remote storage block
+- standalone prefect orion API, or prefect cloud
+- `prefect` installed on docker container
+- `docker` installed on agent
+- docker image registered on `dockerhub` (or use prefect image)
+
+1. Create infra block in UI
+  - image - `dockerID/image:tag`; otherwise defaults to `prefect` image
+  - pull policy - always? I think this only pulls at the start of agent start
+  - leave networks
+  - leave volume
+  - auto remove container on completion
+  - `env` can set `"EXTRA_PIP_PACKAGES"` which allows for additional dependencies, i.e. `gcsfs` for the container to interact with GCP bucket, if using default image
+    - json format: `{"EXTRA_PIP_PACKAGES": "gcsfs"}`
+    - flow code does not need to be baked into container since it can pull from remote storage
+1. Create infra block with code
+
+```py
+from prefect.infrastructure.docker import DockerContainer
+
+# alternative to creating DockerContainer block in the UI
+docker_block = DockerContainer(
+    block_name="ingest-taxi", # not sure how to set block name; defaulted to zoom
+    name="ingest-taxi",
+    # image="discdiver/prefect:zoom",  # insert your image here
+    env={
+        "EXTRA_PIP_PACKAGES": "gcsfs pandas pandas-gbq pyarrow prefect_gcp"
+    },
+    image_pull_policy="ALWAYS",
+    auto_remove=True,
+)
+
+docker_block.save("zoom", overwrite=True)
+```
+
+Alternatively, if we don't want to `pip install` every time the agent starts, we can `docker push` our own image with dependencies already installed
+
+Create a repository, and tag the image. `docker pull vykuang/<repo>:<tag>` will retrieve the image, much like `docker pull python:3.9`
+
+Authenticate with `docker login` before `docker push`
+
+Do not use `docker login` without credential helper:
+
+> WARNING! Your password will be stored unencrypted in /home/<user>/.docker/config.json.
+Configure a credential helper to remove this warning. See
+https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+
+```sh
+# download the pass tool
+sudo apt-get install gpg2 pass -y
+# create key
+gpg2 --gen-key
+# save the key ID
+gpg2 --list-secret-keys # copy the SEC string of alphanumerics
+# initialize pass
+pass init <sec_ID_here>
+# download the helper binary
+wget https://github.com/docker/docker-credential-helpers/releases/download/v0.7.0/docker-credential-pass-v0.7.0.linux-amd64 -O docker-credential-pass
+# make it executable
+chmod +x docker-credential-pass
+# move to $PATH
+sudo cp docker-credential-pass /usr/local/bin
+# try it out
+docker-credential-pass
+## Usage: docker-credential-pass <store|get|erase|list|version>
+# edit the ~/.docker/config.json per docs
+# login
+docker login
+```
+
+Edit the `~/.docker/config.json` to include
+
+```json
+{
+  "credsStore": "pass"
+}
+```
+
+`docker login` will no longer save the password in base64-encoding.
+
 ### Prefect Cloud
 
 Let's set up shop here instead.
@@ -316,6 +425,24 @@ entrypoint = (
 - both `path` and `entrypoint` are passed to `Deployment.build_from_flow`
 
 This is hopeless. Run from root. Don't use `github` block again.
+
+GcsBucket works fine, and the path works as expected. `build` uploads the file to the specified storage, and `prefect agent` pulls from the correct directory.
+
+```sh
+# build_web_gcs_cloud.sh
+prefect deployment build etl_web_gcs.py:etl_parent_flow \
+  -n taxi-upload-gcs \
+  -q de-zoom-taxi \
+  --infra process \
+  --output web-gcs-cloud \
+  --storage-block gcs/flow-storage-gcs/ny-taxi \
+  --params='{"color": "green", "months":[5], "year": 2019, "block_name":"ny-taxi-gcs"}'\
+  --apply
+```
+
+The `.py`s are uploaded to `gs://bucket/ny-taxi/`, and agent pulls the code from the same dir.
+
+- requires `gcsfs` library for prefect to interact with cloud storage
 
 ## Homework
 

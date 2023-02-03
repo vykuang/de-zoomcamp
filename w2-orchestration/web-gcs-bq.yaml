@@ -1,0 +1,90 @@
+###
+### A complete description of a Prefect Deployment for flow 'taxi-gcs-bq'
+###
+name: taxi-gcs-bq
+description: Main flow to load data from cloud storage to BigQuery
+version: fc3fe9ed0f5b5a8a0a943cec0ef1dbb0
+# The work queue that will handle this deployment's runs
+work_queue_name: de-zoom-taxi
+work_pool_name: default-agent-pool
+tags: []
+parameters:
+  color: yellow
+  year: 2019
+  months:
+  - 2
+  - 3
+  gcs_block: ny-taxi-gcs
+schedule: null
+is_schedule_active: true
+infra_overrides: {}
+
+###
+### DO NOT EDIT BELOW THIS LINE
+###
+flow_name: taxi-gcs-bq
+manifest_path: null
+infrastructure:
+  type: docker-container
+  env:
+    EXTRA_PIP_PACKAGES: gcsfs pandas prefect_gcp
+  labels: {}
+  name: gcp-bucket-bq
+  command: null
+  image: prefecthq/prefect:2.7.10-python3.10
+  image_pull_policy: IF_NOT_PRESENT
+  image_registry: null
+  networks: []
+  network_mode: null
+  auto_remove: true
+  volumes: []
+  stream_output: true
+  memswap_limit: null
+  mem_limit: null
+  privileged: false
+  _block_document_id: ac75b63c-f5e3-47d0-9e9f-e69570fdb2c1
+  _block_document_name: ingest-taxi-container
+  _is_anonymous: false
+  block_type_slug: docker-container
+  _block_type_slug: docker-container
+storage:
+  bucket_path: de-zoom-prefect
+  service_account_info: null
+  project: de-zoom-83
+  _block_document_id: 97aad8f9-4ac6-4e2f-86c1-b04407e810d0
+  _block_document_name: flow-storage-gcs
+  _is_anonymous: false
+  block_type_slug: gcs
+  _block_type_slug: gcs
+path: ny-taxi-bq/
+entrypoint: etl_gcs_bq.py:gcs_to_bq
+parameter_openapi_schema:
+  title: Parameters
+  type: object
+  properties:
+    year:
+      title: year
+      default: 2021
+      position: 0
+      type: integer
+    color:
+      title: color
+      default: yellow
+      position: 1
+      type: string
+    months:
+      title: months
+      default:
+      - 1
+      position: 2
+      type: array
+      items:
+        type: integer
+    gcs_block:
+      title: gcs_block
+      default: ny-taxi-gcs
+      position: 3
+      type: string
+  required: null
+  definitions: null
+timestamp: '2023-02-03T05:37:07.902772+00:00'

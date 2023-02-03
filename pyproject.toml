@@ -18,6 +18,7 @@ prefect-sqlalchemy = "~0.2.2"
 protobuf = "~4.21.11"
 pyarrow = "~10.0.1"
 prefect-gcp = {version = "^0.2.4", extras = ["cloud_storage"]}
+gcsfs = "^2023.1.0"
 
 
 [tool.poetry.group.dev.dependencies]

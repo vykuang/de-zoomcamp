@@ -45,3 +45,6 @@ dask-worker-space/
 
 # project artifacts
 blocks/
+*.sh
+*.md
+*.yaml
