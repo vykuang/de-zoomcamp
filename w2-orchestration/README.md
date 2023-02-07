@@ -270,6 +270,14 @@ docker_block.save("zoom", overwrite=True)
 
 Alternatively, if we don't want to `pip install` every time the agent starts, we can `docker push` our own image with dependencies already installed
 
+Problem: SignatureMismatch
+
+Even though I listed the parameters in the correct order between my `.py` and `--params` in `prefect deployment build`, once `prefect deployment run` executes, it swapped the order of `year` and `color`, triggering signature mismatch when the agent calls for it. Not sure why ordering mattered if they're all explicit keyword arguments. May need to adjust how I define `flow` parameters in the future to just use `kwarg`, encompassing all params.
+
+Here I just swapped my function definition to match what `run` stated.
+
+### Docker credential
+
 Create a repository, and tag the image. `docker pull vykuang/<repo>:<tag>` will retrieve the image, much like `docker pull python:3.9`
 
 Authenticate with `docker login` before `docker push`
@@ -279,6 +287,8 @@ Do not use `docker login` without credential helper:
 > WARNING! Your password will be stored unencrypted in /home/<user>/.docker/config.json.
 Configure a credential helper to remove this warning. See
 https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+
+[Source for procedure](https://github.com/docker/docker-credential-helpers/issues/102#issuecomment-388974092)
 
 ```sh
 # download the pass tool
