@@ -241,6 +241,7 @@ Requirements to dockerize our execution agents:
 
 1. Create infra block in UI
   - image - `dockerID/image:tag`; otherwise defaults to `prefect` image
+    - `docker pull prefecthq/prefect:2.7-python3.10`
   - pull policy - always? I think this only pulls at the start of agent start
   - leave networks
   - leave volume
