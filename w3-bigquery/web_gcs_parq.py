@@ -4,7 +4,8 @@
 from pathlib import Path
 import argparse
 import pandas as pd
-
+import pyarrow as pa
+import pyarrow.parquet as pq
 import os
 
 from prefect import flow, task
@@ -31,39 +32,58 @@ def retrieve(dataset_url: Path, data_dir: Path, taxi_type: str) -> Path:
 
 
 @task()
-def read_parquet(local_path: str) -> pd.DataFrame:
+def read_parquet(local_path: str) -> pa.Table:
     """
-    Reads parquet into dataframe for transformation
+    Reads parquet into pyarrow table for transformation
+
+    Originally tried to read as df, but ran into a 
+    timestamp out of bounds error
     """
     logger = get_run_logger()
-    df = pd.read_parquet(
-        local_path,
-        engine="pyarrow",
-    )
-    logger.info(f"{len(df)} rows loaded from {local_path}")
-    return df
+    tb = pq.read_table(local_path)
+    logger.info(f"{len(tb)} rows loaded from {local_path}")
+    return tb
 
 
 @task()
-def clean(df_taxi: pd.DataFrame) -> pd.DataFrame:
+def clean(tb_taxi: pa.Table) -> pd.DataFrame:
     """
-    Fix dtypes, e.g. datetimes
+    Fix dtypes, e.g. datetimes, nulls
+
+    Returns
+    --------
+    df_clean: pd.DataFrame
     """
     logger = get_run_logger()
-    # datetimes = [col for col in df_taxi.columns if "datetime" in col]
-    # for col in datetimes:
-    #     df_taxi[col] = pd.to_datetime(df_taxi[col])
-    logger.info(f"table dtypes:\n{df_taxi.dtypes}")
-    # remove zero pax rides
-    df_rm_empty = df_taxi[df_taxi["passenger_count"] > 0]
-    logger.info(f"{len(df_taxi) - len(df_rm_empty)} rides with zero pax removed")
+    datetimes = [col for col in tb_taxi.column_names if "datetime" in col]
+    logger.info(f"table dtypes:\n{tb_taxi.schema}")
 
-    # remove zero distance
-    df_rm_zero = df_rm_empty[df_rm_empty["trip_distance"] > 0]
-    logger.info(
-        f"{len(df_rm_empty) - len(df_rm_zero)} rides with zero distance removed"
-    )
-    logger.info(f"{len(df_rm_zero)} rows saved")
+    df_dts = pd.DataFrame()
+    for col in datetimes:
+        # handles OutOfBounds timestamps
+        df_dts[col] = pd.to_datetime(tb_taxi.column(col), errors='coerce')
+    
+    # convert to pandas normally for other cols
+    non_dts = [col for col in tb_taxi.column_names if col not in datetimes]
+    df_taxi = tb_taxi.select(non_dts).to_pandas()
+    # combine
+    df_taxi = pd.concat([df_taxi, df_dts], axis=1)
+    # cast to appropriate types
+    # Capital 'I' in Int16 to use pandas integer type; allows NaN
+    df_taxi['SR_Flag'] = df_taxi['SR_Flag'].astype('Int16', errors='ignore') 
+    id_cols = [col for col in df_taxi.columns if "locationID" in col]
+    df_taxi[id_cols] = df_taxi[id_cols].astype('Int32', errors='ignore')
+    logger.info(f"df casted to:\n{df.dtypes}")
+    # # remove zero pax rides
+    # df_rm_empty = df_taxi[df_taxi["passenger_count"] > 0]
+    # logger.info(f"{len(df_taxi) - len(df_rm_empty)} rides with zero pax removed")
+
+    # # remove zero distance
+    # df_rm_zero = df_rm_empty[df_rm_empty["trip_distance"] > 0]
+    # logger.info(
+    #     f"{len(df_rm_empty) - len(df_rm_zero)} rides with zero distance removed"
+    # )
+    # logger.info(f"{len(df_rm_zero)} rows saved")
     return df_taxi
 
 
@@ -73,13 +93,13 @@ def write_local(df: pd.DataFrame, fpath: Path) -> Path:
     logger = get_run_logger()
     if not fpath.parent.exists():
         logger.info(f"creating data directory {fpath.parent.resolve()} first")
-        fpath.parent.mkdir(parents=True)
+        fpath.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(fpath, compression="gzip")
     return fpath
 
 
 @task(retries=3)
-def upload_gcs(block_name: str, fpath: Path) -> None:
+def upload_gcs(block_name: str, fpath: Path, replace: bool = True) -> None:
     """Upload the local parquet file to GCS"""
     logger = get_run_logger()
     gcs_block = GcsBucket.load(block_name)
@@ -93,7 +113,7 @@ def upload_gcs(block_name: str, fpath: Path) -> None:
     logger.info(f"{gcs_dir} contents:\n{blobs}")
     logger.info(f"{fname} in above?")
     present = [fname in name for name in contents]
-    if any(present):
+    if any(present) and not replace:
         logger.info(f"{fname} already exists; no upload required")
     else:
         gcs_block.upload_from_path(from_path=fpath, to_path=gcs_path)
@@ -114,12 +134,13 @@ def _web_gcs_parq(
     dataset_url = (
         f"https://d37ci6vzurychx.cloudfront.net/trip-data/{dataset_file}.parquet"
     )
-    fpath = retrieve(dataset_url=dataset_url, data_dir=data_dir, taxi_type=taxi_type)
-    # fpath = Path(f"{data_dir}/{taxi_type}/{dataset_file}.parquet")
+    raw_path = retrieve(dataset_url=dataset_url, data_dir=data_dir, taxi_type=taxi_type)
+    tb = read_parquet(raw_path)
+    fpath = Path(f"{data_dir}/staging/{taxi_type}/{year}-{month:02}.parquet")
     # if not fpath.exists():
-    #     df = read_parquet(fpath)
-    #     # df_clean = clean(df)
-    #     fpath = write_local(df, fpath)
+    #     df 
+    df_clean = clean(tb)
+    fpath = write_local(df_clean, fpath)
     upload_gcs(block_name, fpath)
 
 
