@@ -74,15 +74,16 @@ def clean(tb_taxi: pa.Table, taxi_type: str = "fhv") -> pd.DataFrame:
     df_taxi = pd.concat([df_taxi, df_dts], axis=1)
 
     # cast to appropriate types
-    if taxi_type == "fhv":
-        # Capital 'I' in Int16 to use pandas integer type; allows NaN
-        df_taxi['SR_Flag'] = df_taxi['SR_Flag'].astype('Int16', errors='ignore')
-    elif taxi_type == "green":
-        # Capital "F" for nullable float
-        df_taxi['ehail_fee'] = df_taxi['ehail_fee'].astype('Float64', errors='ignore')
+    fee_cols = [col for col in df_taxi.columns if "fee" in col.lower()]
+    # Capital "F" for nullable float; pandas feature
+    df_taxi[fee_cols] = df_taxi[fee_cols].astype('Float64', errors='ignore')
 
-    id_cols = [col for col in df_taxi.columns if "locationID" in col]
-    df_taxi[id_cols] = df_taxi[id_cols].astype('Int32', errors='ignore')
+    if taxi_type != "fhv":
+        # float, otherwise, due to nulls present
+        df_taxi['passenger_count'] = df_taxi['passenger_count'].astype('Int8', errors='ignore')
+    # flags, types and IDs are categorical; cast from numeric to string
+    id_cols = [col for col in df_taxi.columns if "ID" in col or "type" in col.lower() or "flag" in col.lower()]
+    df_taxi[id_cols] = df_taxi[id_cols].astype('string', errors='ignore')
     logger.info(f"df casted to:\n{df_taxi.dtypes}")
     # # remove zero pax rides
     # df_rm_empty = df_taxi[df_taxi["passenger_count"] > 0]
