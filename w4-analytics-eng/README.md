@@ -117,4 +117,17 @@ Use the starter project
     - bq job user
     - bq user
 - create the .json key
-- sftp to vm
+- (optional) sftp to vm
+- initialize cloud dbt project and connect to bigquery
+    - upload the .json key
+    - link to our repo
+        - provide the ssh key
+        - dbt will return with a deploy key
+        - add this as a deploy key in our github repo > settings > deploy keys
+            - give read/write access
+            - add key
+        - provide a subdirectory so that when we run `dbt init` it doesn't crowd the root
+        - `dbt_models`
+    - in the dbt cloud IDE, press `initialize project`
+    - some folders and a `dbt_project.yml` will be created
+    - name our project - `ny_taxi_trips` - in the `.yml`
