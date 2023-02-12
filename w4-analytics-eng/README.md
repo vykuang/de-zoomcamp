@@ -165,4 +165,13 @@ This refers to how the model is *materialized* in the DWH
 
 How does dbt source datasets to use in `FROM` clauses?
 
+- `sources`: defined top level in `models/schema.yml`
+  - use in `my_model.sql` `FROM` statements:
+  - `FROM {{ source('source_name', 'table_name') }}`
+  - the `{{ source(...) }}` invokes a source macro which resolves the name to the correct schema (i.e. table)
+- seeds: located in `seeds/`
+  - csv files
+  - for dim tables which do not change often
+  - `dbt seed -s file_name`
+
 ##
