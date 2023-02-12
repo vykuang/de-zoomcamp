@@ -103,10 +103,6 @@ dbt Cloud will integrate with Bigquery; no local dbt core req'd
 
 [following steps from this doc](https://github.com/DataTalksClub/data-engineering-zoomcamp/blob/main/week_4_analytics_engineering/dbt_cloud_setup.md)
 
-### dbt cloud project
-
-Use the starter project
-
 ### Connect bigquery to dbt cloud
 
 - create service account for dbt-cloud
@@ -131,3 +127,42 @@ Use the starter project
     - in the dbt cloud IDE, press `initialize project`
     - some folders and a `dbt_project.yml` will be created
     - name our project - `ny_taxi_trips` - in the `.yml`
+
+### dbt cloud project
+
+Use the starter project
+
+Under `models/examples/` there are two sample `model.sql` files, which in addition to regular SQL statements have a *materialization strategies*:
+
+```sql
+{{ config(materialized='table') }}
+```
+
+- table
+  - faster to query
+  - may take longer to rebuild
+  - new records in source are not automatically added
+  - use for BI tools - faster end-user experience
+  - and if transformations are complex
+- view
+  - no additional data stored
+  - may be slow to query against, if transformations are complex (anything outside of renaming/recasting)
+  - start with `views`; change to others if performance becomes an issue
+- incremental
+  - essentially a table
+  - allows model to run incrementally
+  - e.g. if data doesn't change often, our model would update only if data changes, and perform transformations only on new records
+  - needs more configs
+- ephemeral
+  - reduce DWH clutter; does not produce views or tables
+  - creates common table expression (CTE) instead
+  - cannot be queried directly
+  - use in downstream model
+
+This refers to how the model is *materialized* in the DWH
+
+### dbt model - `FROM`
+
+How does dbt source datasets to use in `FROM` clauses?
+
+##
