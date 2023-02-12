@@ -163,15 +163,105 @@ This refers to how the model is *materialized* in the DWH
 
 ### dbt model - `FROM`
 
+[dbt: using sources](https://docs.getdbt.com/docs/build/sources)
+
 How does dbt source datasets to use in `FROM` clauses?
 
 - `sources`: defined top level in `models/schema.yml`
   - use in `my_model.sql` `FROM` statements:
   - `FROM {{ source('source_name', 'table_name') }}`
   - the `{{ source(...) }}` invokes a source macro which resolves the name to the correct schema (i.e. table)
-- seeds: located in `seeds/`
+  - creates dependency between the source table and the model (derived from the source)
+- `seeds`: located in `seeds/`
+  - [docs here](https://docs.getdbt.com/docs/build/seeds)
   - csv files
-  - for dim tables which do not change often
-  - `dbt seed -s file_name`
+  - for static dim tables which do not change often
+  - `dbt seed -s file_name` loads them into the DWH (i.e. bigquery)
+  - `taxi_zone_lookup.csv`
+  - other examples:
+    - country codes: country names
+    - employee account IDs: names
+  - do not use for raw or sensitive data
+- `ref`: references `seed`'d tables downstream in models
+  - `FROM {{ ref('table_name`) }}` will reference `table_name` that was seeded
+  - abstracts the referencing of table names so that it can be resolved properly in different environments
 
-##
+### Building the first model
+
+1. define `sources` in `schema.yml`
+  1. refer to an existing table in our BQ DWH
+1. in `stg_fhv_taxi_trips.sql`, in the same dir as the schema:
+  1. configure the materialization as `view`
+  1. `select * from {{ source('staging', 'fhv_taxi_trips`) }}
+
+`schema.yml`
+
+```yml
+version: 2
+
+sources:
+    - name: staging
+      # For bigquery:
+      database: de-zoom-83
+
+      schema: trips_data_all
+
+      tables:
+        - name: fhv_taxi_trips
+```
+
+The `.sql` model
+
+```sql
+{{ config(materialized='view') }}
+
+select *
+from {{ source('staging', 'fhv_taxi_trips') }}
+limit 100
+```
+
+Execute via `dbt run --select stg_fhv_taxi_trips`
+
+A `stg_fhv_taxi_trips` view should now populate the `dbt_ny_taxi` dataset in our BQ DWH; that dataset was previously specified when first creating this project in dbt cloud
+
+Note that being a view, it will show `0 bytes; 0 rows` in `details` tab, but it can be queried against.
+
+### Macro
+
+Defined in `macros/some_name.yml`, they are reuseable SQL snippets that act like functions.
+
+- allows control structures like `if` and `for loops`
+- set environment vars for production
+- written as `.sql` inside `macros/`
+- the `.yml` references that `some_macro.sql` and contextualizes it with metadata
+
+### Packages
+
+Analogous to libraries
+
+- standalone dbt projects, incl. models and macros that target specific problems
+- when added to a project, that package's models and macros are also added to your project
+- define the package dependencies in a `packages.yml` in project root, i.e. `dbt-models/`
+- `dbt_utils` has a `.surrogate_key(['list_of_cols'])` which produces an ad-hoc unique ID based on that `list_of_cols`
+
+```yml
+# packages.yml
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 0.8.0
+```
+
+### Variables
+
+- defines values used across the project
+- combine with macro to provide dynamic data at runtime
+- define with `{{ var('name', args=...) }}`
+- specify with `dbt run --var 'name:value'`
+
+### Seeds
+
+`.csv`s inside `seeds/`, which should be excluded from version control. Add to the DWH via `dbt seed`.
+
+- `dbt seed` will insert `taxi_zone_lookup` table in our `dbt_ny_taxi` dataset
+
+Configure via `dbt_project.yml`, and set the properties via `seeds/properties.yml`. The subdirectory `.yml` will take precedence.

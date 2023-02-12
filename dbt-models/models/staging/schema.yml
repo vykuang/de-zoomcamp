@@ -3,26 +3,27 @@ version: 2
 
 sources:
     - name: staging
-      #For bigquery:
-      #database: taxi-rides-ny-339813
+      # For bigquery:
+      database: de-zoom-83
 
       # For postgres:
-      database: production
+      # database: production
 
       schema: trips_data_all
 
       # loaded_at_field: record_loaded_at
       tables:
-        - name: green_tripdata
-        - name: yellow_tripdata
-         # freshness:
-           # error_after: {count: 6, period: hour}
+        - name: green_taxi_trips
+        # - name: yellow_taxi_trips
+        - name: fhv_taxi_trips
+          # freshness:
+          #   error_after: {count: 6, period: hour}
 
 models:
-    - name: stg_green_tripdata
+    - name: stg_green_taxi_trips
       description: >
         Trip made by green taxis, also known as boro taxis and street-hail liveries.
-        Green taxis may respond to street hails,but only in the areas indicated in green on the
+        Green taxis may respond to street hails, but only in the areas indicated in green on the
         map (i.e. above W 110 St/E 96th St in Manhattan and in the boroughs).
         The records were collected and provided to the NYC Taxi and Limousine Commission (TLC) by
         technology service providers. 
@@ -110,7 +111,7 @@ models:
           - name: Total_amount 
             description: The total amount charged to passengers. Does not include cash tips.
 
-    - name: stg_yellow_tripdata
+    - name: stg_yellow_taxi_trips
       description: > 
         Trips made by New York City's iconic yellow taxis. 
         Yellow taxis are the only vehicles permitted to respond to a street hail from a passenger in all five
@@ -201,3 +202,22 @@ models:
             description: Total amount of all tolls paid in trip.
           - name: Total_amount 
             description: The total amount charged to passengers. Does not include cash tips.
+    
+    - name: stg_fhv_taxi_trips
+      description: >
+        For hire vehicle taxi trip data
+      columns:
+          - name: dispatching_base_num
+            description: Dispatch base number
+          - name: PUlocationID
+            description: PUlocationID
+          - name: DOlocationID
+            description: DOlocationID
+          - name: SR_Flag
+            description: SR_Flag
+          - name: affiliated_base_num
+            description: affiliated_base_num
+          - name: pickup_datetime
+            description: pickup_datetime
+          - name: dropoff_datetime
+            description: dropoff_datetime
