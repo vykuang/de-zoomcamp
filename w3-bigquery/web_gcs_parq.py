@@ -106,7 +106,7 @@ def write_local(df: pd.DataFrame, fpath: Path):
     df.to_parquet(fpath, compression="gzip")
     logger.info(f"Wrote recasted dataframe to {fpath}")
 
-def upload_gcs(bucket_name: str, src_file: Path, dst_file: str, replace: bool = False):
+def upload_gcs(bucket_name: str, src_file: Path, dst_file: str, replace: bool = True):
     """
     Upload the local parquet file to GCS
     Ref: https://cloud.google.com/storage/docs/uploading-objects#storage-upload-object-python
@@ -133,7 +133,7 @@ def upload_gcs(bucket_name: str, src_file: Path, dst_file: str, replace: bool = 
     try:
         blob.upload_from_filename(
             src_file, 
-            if_generation_match=int(replace),
+            # if_generation_match=int(replace),
             timeout=90,
         )
     except Exception as e:
