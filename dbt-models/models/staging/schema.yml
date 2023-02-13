@@ -14,7 +14,7 @@ sources:
       # loaded_at_field: record_loaded_at
       tables:
         - name: green_taxi_trips
-        # - name: yellow_taxi_trips
+        - name: yellow_taxi_trips
         - name: fhv_taxi_trips
           # freshness:
           #   error_after: {count: 6, period: hour}
@@ -53,14 +53,14 @@ models:
             tests:
               - relationships:
                   to: ref('taxi_zone_lookup')
-                  field: locationid
+                  field: CAST(locationid as string)
                   severity: warn
           - name: dropoff_locationid 
             description: locationid where the meter was engaged.
             tests:
               - relationships:
                   to: ref('taxi_zone_lookup')
-                  field: locationid
+                  field: CAST(locationid as string)
           - name: RateCodeID 
             description: >
                 The final rate code in effect at the end of the trip.
@@ -88,7 +88,7 @@ models:
               - accepted_values:
                   values: "{{ var('payment_type_values') }}"
                   severity: warn
-                  quote: false
+                  quote: true
           - name: payment_type_description
             description: Description of the payment_type code
           - name: Fare_amount 
@@ -144,14 +144,14 @@ models:
             tests:
               - relationships:
                   to: ref('taxi_zone_lookup')
-                  field: locationid
+                  field: CAST(locationid as string)
                   severity: warn
           - name: dropoff_locationid 
             description: locationid where the meter was engaged.
             tests:
               - relationships:
                   to: ref('taxi_zone_lookup')
-                  field: locationid
+                  field: CAST(locationid as string)
                   severity: warn
           - name: RateCodeID 
             description: >
@@ -180,7 +180,7 @@ models:
               - accepted_values:
                   values: "{{ var('payment_type_values') }}"
                   severity: warn
-                  quote: false
+                  quote: true # allows vars as ints; quotes turn it into string
           - name: payment_type_description
             description: Description of the payment_type code
           - name: Fare_amount 
@@ -207,12 +207,29 @@ models:
       description: >
         For hire vehicle taxi trip data
       columns:
+          - name: tripid
+            description: Primary key consisting of PUlocationID and pickup_datetime
+            tests:
+              - not_null:
+                  severity: warn
+              - unique:
+                  severity: warn
           - name: dispatching_base_num
             description: Dispatch base number
           - name: PUlocationID
-            description: PUlocationID
+            description: locationid where the meter was engaged.
+            tests:
+              - relationships:
+                  to: ref('taxi_zone_lookup')
+                  field: CAST(locationid as string)
+                  severity: warn            
           - name: DOlocationID
-            description: DOlocationID
+            description: locationid where the meter was disengaged.
+            tests:
+              - relationships:
+                  to: ref('taxi_zone_lookup')
+                  field: CAST(locationid as string)
+                  severity: warn
           - name: SR_Flag
             description: SR_Flag
           - name: affiliated_base_num

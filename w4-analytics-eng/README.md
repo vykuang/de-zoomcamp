@@ -52,7 +52,7 @@ Architecture:
   - final presentation of data
   - exposure to stakeholders
 
-## dbt
+## dbt basics
 
 **Data Build Tool** is a SQL based transformation tool that leverages SWE best practices
 
@@ -128,9 +128,29 @@ dbt Cloud will integrate with Bigquery; no local dbt core req'd
     - some folders and a `dbt_project.yml` will be created
     - name our project - `ny_taxi_trips` - in the `.yml`
 
+### File Structure
+
+[docs here](https://docs.getdbt.com/guides/best-practices/how-we-structure/1-guide-overview)
+
+1. `models/` should have three primary layers:
+    1. *staging* - creating initial modular blocks from source
+    1. *intermediate* - stacking layers of logic with specific purposes to join staging models into what we needs
+    1. *mart* - what end-users seed
+1. `data/`, or `seeds/`
+    - static data files
+1. `README.md` - for humans to read
+1. `dbt_project.yml` - project configs
+1. `packages.yml` - dependencies of this project
+1. `macros/` - user defined SQL functions
+1. `tests/` - data validation
+    - tests for nulls, uniques, accepted values, or some other custom specs
+    - typically use open source pkgs like `dbt-utils` or `dbt-expectations`
+
 ### dbt cloud project
 
-Use the starter project
+[docs on project components](https://docs.getdbt.com/docs/build/projects)
+
+Use the starter project with `dbt init`.
 
 Under `models/examples/` there are two sample `model.sql` files, which in addition to regular SQL statements have a *materialization strategies*:
 
@@ -159,7 +179,11 @@ Under `models/examples/` there are two sample `model.sql` files, which in additi
   - cannot be queried directly
   - use in downstream model
 
-This refers to how the model is *materialized* in the DWH
+This refers to how the model is *materialized* in the DWH.
+
+> Materializations abstract away DDL and DML.
+
+[docs: best practices](https://docs.getdbt.com/guides/best-practices/materializations/guides/best-practices/materializations/1-overview)
 
 ### dbt model - `FROM`
 
@@ -226,6 +250,8 @@ A `stg_fhv_taxi_trips` view should now populate the `dbt_ny_taxi` dataset in our
 
 Note that being a view, it will show `0 bytes; 0 rows` in `details` tab, but it can be queried against.
 
+The actual SQL used to materialize the model will also be stored in `targets/compiled/proj-name/models/`
+
 ### Macro
 
 Defined in `macros/some_name.yml`, they are reuseable SQL snippets that act like functions.
@@ -251,17 +277,85 @@ packages:
     version: 0.8.0
 ```
 
+Reference with
+
+```sql
+select
+    -- identifiers
+    {{ dbt_utils.surrogate_key(['vendorid', 'lpep_pickup_datetime']) }} as tripid,
+    ...
+```
+
+Before usage, must run `dbt deps` to install them onto the project
+
+- creates `dbt_packages/dbt_utils/` that houses the package models/macros`
+
 ### Variables
 
 - defines values used across the project
+    - define in `dbt_project.yml`
+    - define with `{{ var('name', args=...) }}`
+    - or, specify in CLI with `dbt run --var 'name:value'`
+        - `dbt build` can also set var
 - combine with macro to provide dynamic data at runtime
-- define with `{{ var('name', args=...) }}`
-- specify with `dbt run --var 'name:value'`
 
 ### Seeds
 
 `.csv`s inside `seeds/`, which should be excluded from version control. Add to the DWH via `dbt seed`.
-
 - `dbt seed` will insert `taxi_zone_lookup` table in our `dbt_ny_taxi` dataset
+    - `--full-refresh` to `DROP` the original and `CREATE` a new one.
 
 Configure via `dbt_project.yml`, and set the properties via `seeds/properties.yml`. The subdirectory `.yml` will take precedence.
+
+Upload by pushing to the remote repository, so that it shows up in dbt's cloud IDE.
+
+- if it's small enough, can also create the file and copy-paste the contents in
+
+## Testing models
+
+[testing docs](https://docs.getdbt.com/docs/build/tests)
+
+We can impose tests on our models to see if our data meets our expectations. In dbt they function as `select` queries, written such that if they return any rows, it could indicate a problem
+
+- defined on a per-column basis in `schema.yml`, under `column: tests: `
+- these built-in checks include
+    - `unique`: checks that all values are unique, e.g. for the table's primary key
+    - `not_null`: checks for nulls
+    - `accepted_value`: checks that all values are expected
+    - `relationships`: foreign key to another table
+        - `to: ref('taxi_zone_lookup')`
+        - `field: CAST(locationid as string)`: all locationIDs exist in taxi_zone_lookup's `locationid`
+        - `severity: warn`; could also be error?
+- custom test queries are defined the same way as `macros/` but in `tests/`
+    - `select * from ... where tripid is null`
+
+Test results are output during `dbt build`, or `dbt run`
+
+### payment_types
+
+There's about 1e6 rows in yellow taxi trips where `payment_types = 0`, failing the test that we set, which assumes that all payment types must have value between 1 and 6. Should the value be shifted, or should `0` be changed to `6`?
+
+## Documenting models
+
+dbt provides a way to automatically generate docs for our project, and render as website
+
+[docs for docs here](https://docs.getdbt.com/docs/collaborate/documentation)
+
+The docs are generated from the column descriptions in our `schema.yml`, under top level `models: -> columns: `
+
+For each column, set:
+
+- name:
+- description:
+- tests:
+
+CLI commands:
+
+- `dbt docs generate` generates the `.JSON` documentation.
+- `dbt docs serve` takes those JSONs and populates a local website
+
+## Deploying a dbt project
+
+
+
+## Visualization
