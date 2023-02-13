@@ -252,6 +252,31 @@ Note that being a view, it will show `0 bytes; 0 rows` in `details` tab, but it 
 
 The actual SQL used to materialize the model will also be stored in `targets/compiled/proj-name/models/`
 
+#### row_number() over partition
+
+This snippet:
+
+```sql
+select 
+    *,
+    row_number() over (
+        partition by vendorid, lpep_pickup_datetime
+        ) as row_num
+from {{ source('staging','green_tripdata') }}
+where vendorid is not null 
+```
+
+is a common pattern which produces a new column of `row_num` to use as index.
+
+- `row_number() over` is a window function that assigns sequential `int`s to each row within a partition
+- `partition by` defines our partitions
+- so when it gets to a new `vendorid`, `row_num` alos re-initializes back to 1
+
+What's curious here is that the partitions are set so granular, at the timestamp level. You would expect that our `row_num` would re-initialize at every row, and it does. Mostly. 
+The rationale is that we are also using those two columns, `vendorid` and `lpep_pickup_datetime`, as our table key. We need that combination to be unique for our table to function the way we expect.
+If we add `where row_num = 1` as a filter, we are guaranteeing that every `vendorid` and `lpep_pickup_datetime` combination is unique; if for whatever reason there were duplicates,
+the `row_num = 1` clause would filter it out, and ensure that our `{{ dbt_utils.surrogate_key(['vendorid', 'lpep_pickup_datetime']) }} as tripid` remains unique
+
 ### Macro
 
 Defined in `macros/some_name.yml`, they are reuseable SQL snippets that act like functions.
@@ -355,6 +380,36 @@ CLI commands:
 - `dbt docs serve` takes those JSONs and populates a local website
 
 ## Deploying a dbt project
+
+### Environments
+
+Deploying implies we're pushing to production. While we develop in `dev` environment, deployment requires `deployment` environment, so create one in `Deploy -> Environments`
+
+- name
+- env type: `{'dev', 'deploy'}`
+- dbt version
+- env vars
+
+A `deployment` type env is required to run jobs
+
+### Jobs
+
+- Projects are deployed via `jobs`.
+- jobs are scheduled, or triggered manually
+- jobs can include multiple `dbt ...` commands
+- jobs can be made to generate documentation
+
+Create in `Deploy -> Jobs`
+
+### Continuous Integration
+
+> Practice of regularly merging dev branches into a central repo, after which automated builds and tests are run
+
+- pull requests can trigger CI
+- enabled via webhooks from github
+- when pull requests (PRs) are ready to merge, the webhook from github can invoke a new run of a specified job
+- that CI job is against a temporary schema
+- PR will only go through if that CI job completes successfully
 
 
 
