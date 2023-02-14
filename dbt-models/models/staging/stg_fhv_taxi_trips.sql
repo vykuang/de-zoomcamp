@@ -12,8 +12,8 @@
 select
     -- identifiers
     {{ dbt_utils.surrogate_key(["PUlocationID", "pickup_datetime"]) }} as tripid,
-    cast(pulocationid as string) as pulocationid,
-    cast(dolocationid as string) as dolocationid,
+    cast(pulocationid as string) as  pickup_locationid,
+    cast(dolocationid as string) as dropoff_locationid,
 
     -- timestamps
     cast(pickup_datetime as timestamp) as pickup_datetime,
