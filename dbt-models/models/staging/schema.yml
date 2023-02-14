@@ -48,7 +48,7 @@ models:
             description: The number of passengers in the vehicle. This is a driver-entered value.
           - name: Trip_distance 
             description: The elapsed trip distance in miles reported by the taximeter.
-          - name: Pickup_locationid
+          - name: pickup_locationid
             description: locationid where the meter was engaged.
             tests:
               - relationships:
@@ -208,22 +208,22 @@ models:
         For hire vehicle taxi trip data
       columns:
           - name: tripid
-            description: Primary key consisting of PUlocationID and pickup_datetime
+            description: Primary key consisting of PUlocationID, pickup_datetime, and dropoff_datetime
             tests:
               - not_null:
                   severity: warn
               - unique:
-                  severity: warn
+                  severity: error
           - name: dispatching_base_num
             description: Dispatch base number
-          - name: PUlocationID
+          - name: pickup_locationid
             description: locationid where the meter was engaged.
             tests:
               - relationships:
                   to: ref('taxi_zone_lookup')
-                  field: CAST(locationid as string)
+                  field: CAST(locationid as string) # I uploaded fhv location id as int, but I cast it back to string in stg
                   severity: warn            
-          - name: DOlocationID
+          - name: dropoff_locationid
             description: locationid where the meter was disengaged.
             tests:
               - relationships:
