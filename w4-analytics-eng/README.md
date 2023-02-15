@@ -127,6 +127,9 @@ dbt Cloud will integrate with Bigquery; no local dbt core req'd
     - in the dbt cloud IDE, press `initialize project`
     - some folders and a `dbt_project.yml` will be created
     - name our project - `ny_taxi_trips` - in the `.yml`
+    - ALTERNATIVELY, authenticate via github and provide access to one repository
+        - this allows Continuous Integration, e.g. Run job on pull requests
+        - linking via @git url will not allow this since it won't have the necessary permissions.
 
 ### File Structure
 
