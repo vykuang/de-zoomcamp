@@ -1,6 +1,6 @@
 # Week 4 - Analytics Engineering - Homework
 
-1. num rows in `fact_trips`: 115,716,952
+1. num rows in `fact_trips`: 115,333,131
 
   - need to deduplicate. Should be around 63M
   - kind of worring: `stg_yellow` has 28M duplicate `tripid`s...
@@ -10,8 +10,9 @@
 1. distribution between service types (green vs yellow) between 2019 and 2020?
 
   - use google data studio (now known as looker) or metabase
+  - 6.9% green vs 93.1% yellow
 
-1. num rows in `stg_fhv_tripdata`: 43261276
+1. num rows in `stg_fhv_tripdata`: 43261276, or 40569536???
 
   - Actually, there are a lot of duplicates for `tripid` even when I include `dropoff_datetime` as part of the surrogate key
   - `affiliated_base_num` is the culprit
@@ -27,6 +28,7 @@ for pickup and dropoff locations
 
   - try `row_number() over partition by (...) as row_num ... where row_num = 1`
   - expect fewer number of rows, removing all nulls in PU and DOLocationID
+  - 22,967,197
 
 1. What is the month with the biggest amount of rides after building a tile for the fact_fhv_trips table.
 Create a dashboard with some tiles that you find interesting to explore the data. 
@@ -51,7 +53,8 @@ One tile should show the amount of trips per month, as done in the videos for fa
   from fhv_taxi_trips
   join ...
   ```
-
+  
+  - same method as the original `facts_trips` upon further inspection
   - worked in `dev`
   - deployment needs changes to be `push`d to remote repo before taking effect. `commit` and `sync` before re-running the job
   - try creating `pull` request to trigger the `build taxi` dbt job
@@ -62,3 +65,10 @@ One tile should show the amount of trips per month, as done in the videos for fa
   - ![dbt github CI pull request](./img/dbt-pull-request.png)
   - after `dbt` job finishes as part of the checks, we can `merge` the pull request
     - can be done automatically
+  - lots of `borough` having `null`s in our `fhv_fact_trips`
+  - need to use `inner join on dim_zones` so that whichever zones from `stg` that don't exist in `dim_zones` will not make it to `fhv_fact_trips`
+  - cut rows down to 22M, from 40M
+  - also noticing a drastic decrease in trip_records for all months after january. No idea why.
+    - BQ public dataset only has fhv data up to 2017.
+    - answer would be january by a landslide???
+    - this meshes with the extremely large size of the january file vs the rest.

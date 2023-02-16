@@ -395,6 +395,8 @@ Deploying implies we're pushing to production. While we develop in `dev` environ
 
 A `deployment` type env is required to run jobs
 
+Deployment pulls code from the *most recent sync* of the remote repository. If code is only updated in cloud IDE but not pushed to repo, dev build will work, but deploy build will not have those changes reflected. Must push code before deploy
+
 ### Jobs
 
 - Projects are deployed via `jobs`.
@@ -412,8 +414,15 @@ Create in `Deploy -> Jobs`
 - enabled via webhooks from github
 - when pull requests (PRs) are ready to merge, the webhook from github can invoke a new run of a specified job
 - that CI job is against a temporary schema
+  - the temp schema is built in the target DWH
+  - should be automatically remoted
+  - will not be built into a permanent schema; this is only for testing
 - PR will only go through if that CI job completes successfully
 
-
-
 ## Visualization
+
+Options:
+
+- metabase
+- looker (formerly google data studio)
+- superset
