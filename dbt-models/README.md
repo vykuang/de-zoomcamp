@@ -1,4 +1,4 @@
-Welcome to your new dbt project!
+# [Link to completed dbt-ny-taxi models](https://github.com/vykuang/dbt-ny-taxi-trips)
 
 ### How to run this project 
 ### About the project
