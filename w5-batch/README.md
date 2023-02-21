@@ -10,3 +10,9 @@ Concepts covered
 - schema enforcement
 - repartition to optimize cluster workload
 - functions and UDF
+
+## Casting schemas
+
+If source is already in parquets, it seems much harder to enforce schema on read. Instead I read the parquet as is, and recasted each column according to their column names, e.g. IDs are ints, datetimes are timestamps, fees and charges are floats
+
+`DataFrame.withColumns(cols_map)` was used; returns a new dataframe.
