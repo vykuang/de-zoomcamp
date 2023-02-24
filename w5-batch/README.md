@@ -111,3 +111,26 @@ When joining a large table with a much smaller table, i.e. `zones_lookup`, spark
 The smaller table is *broadcasted* to each executor
 
 ## Resilient Distributed Datasets
+
+RDDs are collections of objects; dataframe is built on top of RDD, with a schema added
+
+Operations done on dataframe can also be executed on the underlying RDDs
+
+### Operations on RDDs
+
+- .rdd to access the underlying RDD from dataframe
+- map
+- filter
+- reduceByKey
+- toDF(schema=...) to return it back to dataframe
+
+
+### mapPartition
+
+`mapPartitions` takes a *partition* to return *another partition*
+
+> RDD partition -> `mapPartitions` -> RDD partition
+
+So why use it over `map`? When the dataset cannot fit in memory. If we had 1TB to `map` a prediction model, there wouldn't be enough RAM. `mapPartitions` can divvy up the dataset to apply it partition by partition
+
+## Spark in GCP
