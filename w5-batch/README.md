@@ -134,3 +134,50 @@ Operations done on dataframe can also be executed on the underlying RDDs
 So why use it over `map`? When the dataset cannot fit in memory. If we had 1TB to `map` a prediction model, there wouldn't be enough RAM. `mapPartitions` can divvy up the dataset to apply it partition by partition
 
 ## Spark in GCP
+
+### Connecting to GCS
+
+1. Download the cloud storage connector in the form of a `.jar` from https://cloud.google.com/dataproc/docs/concepts/connectors/cloud-storage#getting_the_connector
+1. Install the connector by configuring `SparkConf` and `SparkContext`
+1. `df_green = spark.read.parquet('gs://<data_lake>/data/parts/green/*/*')`
+
+### Creating standalone spark cluster
+
+`spark = SparkSession.builder.master("local[*]")` created a local master *along with the cluster of workers* for us to run spark locally. Now we'll set up workers *outside* the master host
+
+[Offical docs on setup](https://spark.apache.org/docs/latest/spark-standalone.html)
+
+- In standalone mode, each node on the cluster must have a compiled version of Spark
+- `cd $SPARK_HOME && ./sbin/start-master.sh` starts the standalone master server
+    - this prints a `spark://HOST:PORT` URL which is used when connecting workers to the master
+    - also visible on master's web UI (which is different from the master)
+        - by default this is `http://localhost:8080/`, not `4040` like before
+        - access by port forwarding `8080` in VS code
+        - master URL: `spark://<instance_name>.<region>.<proj_name>.internal:7077` since we're running on GCP VM
+    - at this point we have no workers attached to the master
+    - attempting to run `spark.read.parquet` returns this error:
+
+    ```bash
+    23/02/27 14:54:34 WARN TaskSchedulerImpl: Initial job has not accepted any resources; check your cluster UI to ensure that workers are registered and have sufficient resources
+    ```
+
+    ![no workers attached](./img/spark-ui-2.png)
+
+- `cd $SPARK_HOME && ./sbin/start-worker.sh <master_spark_URL>` starts the worker node and connects them to master
+    - can run on same machine as master, so we're still on our VM
+    - has its own web UI @ `http://localhost:8081/`
+        - `--webui-port` can specify the port 
+    - the job will start running once master has this worker available
+
+### Spark-submit
+
+The python script won't specify the master or any spark configuration. It just says what needs to be done. `spark-submit` lets us configure the following
+
+- how many executors
+- how much resources for each executors
+    - RAM
+    - CPU cores
+- which spark master
+
+More importantly we also need to specify `--class` and `--deploy-mode`
+
