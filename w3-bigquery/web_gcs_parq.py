@@ -28,9 +28,9 @@ def retrieve(dataset_url: Path, data_dir: Path, taxi_type: str) -> Path:
         raw_path.parent.mkdir(parents=True, exist_ok=True)
         # os.system(f"wget {dataset_url} -O {raw_path}")
         with requests.get(dataset_url, stream=True) as fstream:
-            fstream.raise_for_status() # raises HTTPerror, if it occurs
-            with open(raw_path, 'wb') as f:
-                for chunk in fstream.iter_content(chunk_size=10*1024):
+            fstream.raise_for_status()  # raises HTTPerror, if it occurs
+            with open(raw_path, "wb") as f:
+                for chunk in fstream.iter_content(chunk_size=10 * 1024):
                     if chunk:
                         f.write(chunk)
     else:
@@ -42,7 +42,7 @@ def read_parquet(local_path: str) -> pa.Table:
     """
     Reads parquet into pyarrow table for transformation
 
-    Originally tried to read as df, but ran into a 
+    Originally tried to read as df, but ran into a
     timestamp out of bounds error
     """
     tb = pq.read_table(local_path)
@@ -64,26 +64,32 @@ def clean(tb_taxi: pa.Table, taxi_type: str = "fhv") -> pd.DataFrame:
     df_dts = pd.DataFrame()
     for col in datetimes:
         # handles OutOfBounds timestamps
-        df_dts[col] = pd.to_datetime(tb_taxi.column(col), errors='coerce')
-    
+        df_dts[col] = pd.to_datetime(tb_taxi.column(col), errors="coerce")
+
     # convert to pandas normally for other cols
     non_dts = [col for col in tb_taxi.column_names if col not in datetimes]
     df_taxi = tb_taxi.select(non_dts).to_pandas()
-    
+
     # combine
     df_taxi = pd.concat([df_taxi, df_dts], axis=1)
 
     # cast to appropriate types
     fee_cols = [col for col in df_taxi.columns if "fee" in col.lower()]
     # Capital "F" for nullable float; pandas feature
-    df_taxi[fee_cols] = df_taxi[fee_cols].astype('Float64', errors='ignore')
+    df_taxi[fee_cols] = df_taxi[fee_cols].astype("Float64", errors="ignore")
 
     if taxi_type != "fhv":
         # float, otherwise, due to nulls present
-        df_taxi['passenger_count'] = df_taxi['passenger_count'].astype('Int8', errors='ignore')
+        df_taxi["passenger_count"] = df_taxi["passenger_count"].astype(
+            "Int8", errors="ignore"
+        )
     # flags, types and IDs are categorical; cast from numeric to string
-    id_cols = [col for col in df_taxi.columns if "ID" in col or "type" in col.lower() or "flag" in col.lower()]
-    df_taxi[id_cols] = df_taxi[id_cols].astype('string', errors='ignore')
+    id_cols = [
+        col
+        for col in df_taxi.columns
+        if "ID" in col or "type" in col.lower() or "flag" in col.lower()
+    ]
+    df_taxi[id_cols] = df_taxi[id_cols].astype("string", errors="ignore")
     logger.info(f"df casted to:\n{df_taxi.dtypes}")
     # # remove zero pax rides
     # df_rm_empty = df_taxi[df_taxi["passenger_count"] > 0]
@@ -106,11 +112,12 @@ def write_local(df: pd.DataFrame, fpath: Path):
     df.to_parquet(fpath, compression="gzip")
     logger.info(f"Wrote recasted dataframe to {fpath}")
 
+
 def upload_gcs(bucket_name: str, src_file: Path, dst_file: str, replace: bool = True):
     """
     Upload the local parquet file to GCS
     Ref: https://cloud.google.com/storage/docs/uploading-objects#storage-upload-object-python
-    
+
     Authentication woes:
     https://cloud.google.com/docs/authentication/client-libraries
     MUST SET UP APPLICATION DEFAULT CREDENTIALS FOR CLIENT LIBRARIES
@@ -119,7 +126,7 @@ def upload_gcs(bucket_name: str, src_file: Path, dst_file: str, replace: bool = 
 
     To use service accounts (instead of user accounts),
     env var GOOGLE_APPLICATION_CREDENTIALS='/path/to/key.json'
-    especially relevant for docker images, if they have fine-grain 
+    especially relevant for docker images, if they have fine-grain
     controlled permissions
 
     not required if you're on a credentialled GCE
@@ -132,7 +139,7 @@ def upload_gcs(bucket_name: str, src_file: Path, dst_file: str, replace: bool = 
     # set to zero to avoid overwrite
     try:
         blob.upload_from_filename(
-            src_file, 
+            src_file,
             # if_generation_match=int(replace),
             timeout=90,
         )
@@ -197,7 +204,7 @@ if __name__ == "__main__":
         "-l",
         default="info",
         type=str.upper,
-        help="log level: {DEBUG, INFO, WARNING, ERROR, CRITICAL}"
+        help="log level: {DEBUG, INFO, WARNING, ERROR, CRITICAL}",
     )
     args = parser.parse_args()
     taxi_type = args.taxi_type

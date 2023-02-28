@@ -38,7 +38,11 @@ def cast_schema(spark_client, raw_path: Path, parts_dir: Path, num_parts: int = 
     then partitions into output folder
     """
     # read as-is
-    df = spark_client.read.option("header", "true").parquet(str(raw_path))
+    match raw_path.suffixes:
+        case [".parquet"] | [_, ".parquet"]:
+            df = spark_client.read.option("header", "true").parquet(str(raw_path))
+        case [".csv"] | [".csv", _]:
+            df = spark_client.read.option("header", "true").csv(str(raw_path))
     # get schema
     schema = get_col_types(df)
     # cast schema
@@ -56,9 +60,7 @@ def cast_schema(spark_client, raw_path: Path, parts_dir: Path, num_parts: int = 
         # withColumns() returns a new dataframe
         df = df.withColumns(col_map)
     # repartition and write
-    df.repartition(num_parts).write.parquet(
-        str(parts_dir), mode="overwrite", compression="gzip"
-    )
+    df.repartition(num_parts).write.parquet(str(parts_dir), mode="overwrite")
     return df
 
 
@@ -70,18 +72,50 @@ if __name__ == "__main__":
     opt(
         "-t",
         "--taxi_type",
+        required=True,
         type=str,
         help="{fhv, fhvhv, yellow, green}",
     )
-    opt("-y", "--year", type=int, help="year for the dataset")
+    opt("-y", "--year", required=True, type=int, help="year for the dataset")
+    opt(
+        "-m",
+        "--month",
+        default=0,
+        type=int,
+        help="month for dataset; if specified, only this month will be read and partitioned",
+    )
     opt("-n", "--num_partitions", default=24, type=int, help="Number of partitions")
+    opt(
+        "-d",
+        "--data_dir",
+        default="../data/taxi_ingest_data/raw",
+        type=Path,
+        help="dir to look for <taxi_type>/*.datasets",
+    )
     args = parser.parse_args()
-    for month in range(1, 13):        
-        raw_path = Path(f"../data/taxi_ingest_data/raw/{args.taxi_type}/{args.taxi_type}_tripdata_{args.year}-{month:02d}.parquet")
-        if raw_path.exists():
-            out_dir = Path(f"../data/taxi_ingest_data/parts/{args.taxi_type}/{args.year}/{month:02d}/")
-            print(f"{raw_path} -> {out_dir} in {args.num_partitions} parts")
-            spark = SparkSession.builder.master("local[*]").appName("test").getOrCreate()
-            cast_schema(spark, raw_path, out_dir, args.num_partitions)
+
+    spark = SparkSession.builder.master("local[*]").appName("test").getOrCreate()
+    if args.month >= 1 and args.month <= 12:
+        p = f"*{args.year}-{args.month:02d}*"
+        fpaths = list((args.data_dir / args.taxi_type).glob(p))
+        if fpaths and (num_files := len(fpaths)) > 1:
+            raise ValueError(f"{num_files} with specified dates found")
         else:
-            raise FileNotFoundError(f"{raw_path} not found")
+            out_dir = Path(
+                f"../data/taxi_ingest_data/parts/{args.taxi_type}/{args.year}/{args.month:02d}/"
+            )
+            print(f"{fpaths[0]} -> {out_dir} in {args.num_partitions} parts")
+            cast_schema(spark, fpaths[0], out_dir, args.num_partitions)
+    else:
+        for month in range(1, 13):
+            raw_path = Path(
+                f"{args.data_dir}/{args.taxi_type}/{args.taxi_type}_tripdata_{args.year}-{month:02d}.parquet"
+            )
+            if raw_path.exists():
+                out_dir = Path(
+                    f"../data/taxi_ingest_data/parts/{args.taxi_type}/{args.year}/{month:02d}/"
+                )
+                print(f"{raw_path} -> {out_dir} in {args.num_partitions} parts")
+                cast_schema(spark, raw_path, out_dir, args.num_partitions)
+            else:
+                raise FileNotFoundError(f"{raw_path} not found")

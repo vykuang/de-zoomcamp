@@ -163,11 +163,14 @@ So why use it over `map`? When the dataset cannot fit in memory. If we had 1TB t
 
     ![no workers attached](./img/spark-ui-2.png)
 
+    - `./sbin/stop-master.sh` stops the master
+
 - `cd $SPARK_HOME && ./sbin/start-worker.sh <master_spark_URL>` starts the worker node and connects them to master
     - can run on same machine as master, so we're still on our VM
     - has its own web UI @ `http://localhost:8081/`
         - `--webui-port` can specify the port 
     - the job will start running once master has this worker available
+    - `./sbin/stop-worker.sh` to stop the worker on this node
 
 ### Spark-submit
 

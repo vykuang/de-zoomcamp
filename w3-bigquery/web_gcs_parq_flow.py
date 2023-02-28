@@ -36,7 +36,7 @@ def read_parquet(local_path: str) -> pa.Table:
     """
     Reads parquet into pyarrow table for transformation
 
-    Originally tried to read as df, but ran into a 
+    Originally tried to read as df, but ran into a
     timestamp out of bounds error
     """
     logger = get_run_logger()
@@ -61,22 +61,22 @@ def clean(tb_taxi: pa.Table, taxi_type: str = "fhv") -> pd.DataFrame:
     df_dts = pd.DataFrame()
     for col in datetimes:
         # handles OutOfBounds timestamps
-        df_dts[col] = pd.to_datetime(tb_taxi.column(col), errors='coerce')
-    
+        df_dts[col] = pd.to_datetime(tb_taxi.column(col), errors="coerce")
+
     # convert to pandas normally for other cols
     non_dts = [col for col in tb_taxi.column_names if col not in datetimes]
     df_taxi = tb_taxi.select(non_dts).to_pandas()
-    
+
     # combine
     df_taxi = pd.concat([df_taxi, df_dts], axis=1)
 
     # cast to appropriate types
     if taxi_type == "fhv":
         # Capital 'I' in Int16 to use pandas integer type; allows NaN
-        df_taxi['SR_Flag'] = df_taxi['SR_Flag'].astype('Int16', errors='ignore') 
+        df_taxi["SR_Flag"] = df_taxi["SR_Flag"].astype("Int16", errors="ignore")
 
     id_cols = [col for col in df_taxi.columns if "locationID" in col]
-    df_taxi[id_cols] = df_taxi[id_cols].astype('Int32', errors='ignore')
+    df_taxi[id_cols] = df_taxi[id_cols].astype("Int32", errors="ignore")
     logger.info(f"df casted to:\n{df.dtypes}")
     # # remove zero pax rides
     # df_rm_empty = df_taxi[df_taxi["passenger_count"] > 0]
@@ -142,7 +142,7 @@ def _web_gcs_parq(
     tb = read_parquet(raw_path)
     fpath = Path(f"{data_dir}/staging/{taxi_type}/{year}-{month:02}.parquet")
     # if not fpath.exists():
-    #     df 
+    #     df
     df_clean = clean(tb)
     fpath = write_local(df_clean, fpath)
     upload_gcs(block_name, fpath)
