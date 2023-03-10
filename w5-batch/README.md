@@ -225,3 +225,98 @@ More importantly we also need to specify `--class` and `--deploy-mode`
 ```
 
 Since we can configure master host and JAR in `spark-submit`, we do not need to do so in our pyspark script. However we still need to configure the hadoop config to make use of the GCS jar inside the script.
+
+### Dataproc
+
+Short for data processing. GCP's managed spark platform
+
+#### Setup
+
+1. Provide permissions for dataproc on IAM
+1. Enable Dataproc API
+1. Create cluster
+    1. name - `de-zoomcamp-cluster`
+    1. cluster type - single node for testing
+    1. component gateway - if enabled, provides web interfaces to underlying spark components without relying on SSH or modifying inbound rules. Shown in Cluster details -> Web interfaces
+    1. Optional components
+        - jupyter
+        - docker
+1. Upload the script to GCS
+    - GCS storage connector is no longer needed since Dataproc comes with it by default, so our script file no longer needs to specify the JAR nor configure the hadoop settings
+    
+#### Submit
+
+[Offical docs](https://cloud.google.com/dataproc/docs/guides/submit-job#dataproc-submit-job-gcloud)
+
+Console UI:
+
+1. On console: Cluster details -> Submit Job
+1. job type: pyspark
+1. main file: the script we just uploaded to GCS. specify with `gs://...`
+1. arguments
+    - `-y=gs://...`
+    - `-g=gs://...`
+    - `-O=gs://...`
+    - note the `=`.
+1. submit
+    - output will be streamed, including logging messages
+    - View output stream with 
+
+    ```bash
+    gcloud dataproc jobs wait job-7c107f3a --project de-zoom-83 --region us-west1
+    ```
+    
+`gcloud` CLI:
+
+```bash
+# export DTC_DATA_LAKE first
+TAXI_YEAR=2020
+PQ_YELLOW="gs://$DTC_DATA_LAKE/data/raw/yellow/yellow_tripdata_$TAXI_YEAR*"
+PQ_GREEN="gs://$DTC_DATA_LAKE/data/raw/green/green_tripdata_$TAXI_YEAR*"
+PQ_REPORT="gs://$DTC_DATA_LAKE/data/report/$TAXI_YEAR"
+gcloud dataproc jobs submit pyspark \
+    --cluster=de-zoomcamp-cluster \
+    --region=us-west1 \
+    gs://$DTC_DATA_LAKE/code/dataproc_sql.py \
+    -- \
+        --input_yellow=$PQ_YELLOW \
+        --input_green=$PQ_GREEN \
+        --output=$PQ_REPORT
+```
+    
+### Spark to BigQuery
+
+Instead of writing our results to cloud storage, write directly to our bigquery data warehouse
+
+[official docs](https://cloud.google.com/dataproc/docs/tutorials/bigquery-connector-spark-example#pyspark)
+
+1. Get the connector from the source: [spark-bigquery-connector](https://github.com/GoogleCloudDataproc/spark-bigquery-connector/releases)
+    - since we're already on GCP's Dataproc, we can just specify it in our `jobs submit` arg as `--jars`
+    - if we're on some custom spark cluster then this will be required
+    - `--jars=gs://spark-lib/bigquery/spark-bigquery-latest.jar`
+1. Upload our `spark_bq_sql.py` and submit via gcloud CLI, same as before
+    - Instead of specifying a bucket for our output, specify `dataset.table` in our bigquery
+1. Create the dataset to store the BQ output
+1. Submit to dataproc as before, with output modified to the BQ dataset.table
+
+```bash
+TAXI_YEAR=2020
+PQ_YELLOW="gs://$DTC_DATA_LAKE/data/raw/yellow/yellow_tripdata_$TAXI_YEAR*"
+PQ_GREEN="gs://$DTC_DATA_LAKE/data/raw/green/green_tripdata_$TAXI_YEAR*"
+BQ_REPORT="trips_data_all.report_$TAXI_YEAR"
+# SPARK_GCS_JAR="gs://spark-lib/bigquery/spark-bigquery-latest.jar"
+SPARK_BQ_JAR="gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.29.0.jar"
+gcloud dataproc jobs submit pyspark \
+    --cluster=de-zoomcamp-cluster \
+    --region=us-west1 \
+    --jars $SPARK_BQ_JAR \
+    gs://$DTC_DATA_LAKE/code/dataproc_bq_sql.py \
+    -- \
+        --input_yellow=$PQ_YELLOW \
+        --input_green=$PQ_GREEN \
+        --output=$BQ_REPORT
+```
+
+- Could not use `spark-bigquery-latest.jar` as we were submitting to dataproc, which required scala 2.12.
+- Specify the later version as indicated on the offical docs
+- Confirm output table in `trips_data_all.report_2020`

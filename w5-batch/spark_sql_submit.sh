@@ -11,3 +11,6 @@ spark-submit \
     -g $PQ_GREEN \
     -O $PQ_REPORT
     
+gs://dtc_data_lake_de-zoom-83/data/raw/yellow/*
+gs://dtc_data_lake_de-zoom-83/data/raw/green/*
+gs://dtc_data_lake_de-zoom-83/data/report/dataproc_yg_monthly/
