@@ -17,6 +17,26 @@ If source is already in parquets, it seems much harder to enforce schema on read
 
 `DataFrame.withColumns(cols_map)` was used; returns a new dataframe.
 
+## Spark Architecture
+
+### `SparkSession`
+
+Entrypoint to programming spark. The python script needs to instantiate a session to create and manipulate RDDs and dataframes via spark API. The `SparkSession` instance gives access to its own instance of `SparkContext`, which is used less frequently after 2.0. Access via `SparkSession.sparkContext`
+
+Session is defined in the `pyspark.sql` module
+
+Best to deal with dataframes
+
+### `SparkContext`
+
+defined as `pyspark.SparkContext`, this is an alternate entrypoint for scripts to use spark API. Represents the connection to a Spark cluster
+
+More suited for RDD ops
+
+### driver
+
+The self-contained pyspark app (written with `pyspark` API). Must explicitly create a `SparkSession` instance in order to read, manipulate, and write output files
+
 ## Spark Cluster
 
 So far we've ran spark in local environment, `local[*]`, and the spark context includes the master, which is also on the same machine. In practice they are separate entities.
@@ -176,11 +196,32 @@ So why use it over `map`? When the dataset cannot fit in memory. If we had 1TB t
 
 The python script won't specify the master or any spark configuration. It just says what needs to be done. `spark-submit` lets us configure the following
 
-- how many executors
+- `--num-executors` how many executors
 - how much resources for each executors
-    - RAM
-    - CPU cores
+    - `--executor-memory`
+    - `--total-executor-cores`
 - which spark master
+    - `--master`
+- additional `jar`s
+    - `--jars path/to/jar`
 
 More importantly we also need to specify `--class` and `--deploy-mode`
 
+```bash
+./bin/spark-submit \
+  --class <main-class> \
+  --master spark://207.184.161.138:7077 \
+  --executor-memory 20G \
+  --total-executor-cores 100 \
+  --num-executors 50 \
+  --deploy-mode <deploy-mode> \
+  --conf <key>=<value> \
+  --conf <key2>=<value2> \
+  --jars path/to/gcs_jar
+  
+  examples/src/main/python/pi.py \
+      --arg1 val1 \
+      --arg2 val2
+```
+
+Since we can configure master host and JAR in `spark-submit`, we do not need to do so in our pyspark script. However we still need to configure the hadoop config to make use of the GCS jar inside the script.
